@@ -1,2 +1,3 @@
 # ReBear-go-interactive-DIY-app
-XI Yushen, ZHENG Wenrui, CHEN Sirui, QI Wenzhen
+## Project planning
+- [ReBear task board and weekly reviews](https://github.com/orgs/sd5913/projects/20)
