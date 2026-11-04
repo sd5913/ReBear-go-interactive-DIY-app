@@ -1,6 +1,6 @@
 # ReBear · 手机网页高保真交互原型 V3
 
-以用户提供的低保真截图及 [交互仓库](https://github.com/sd5913/ReBear-go-interactive-DIY-app) 为流程依据。参考代码版本：`7f7531722eb0524e24aef95231dd6aefd1c5e9c2`。
+以低保真原型及 [交互仓库](https://github.com/sd5913/ReBear-go-interactive-DIY-app) 为流程依据。参考代码版本：`7f7531722eb0524e24aef95231dd6aefd1c5e9c2`。
 
 - Figma 文件：https://www.figma.com/design/1fr7orLNMHknqh5whxQals
 - 最新 V3 可编辑画板：https://www.figma.com/design/1fr7orLNMHknqh5whxQals?node-id=18-2
