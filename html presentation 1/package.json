@@ -1,0 +1,6 @@
+{
+  "name": "rebear-mobile-prototype",
+  "private": true,
+  "version": "3.0.0",
+  "scripts": {"start": "node server.js", "check": "node --check workflow.js && node --check server.js"}
+}
