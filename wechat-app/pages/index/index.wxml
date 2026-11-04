@@ -1,27 +1,21 @@
-<!--index.wxml-->
-<scroll-view class="scrollarea" scroll-y type="list">
-  <view class="container">
-    <view class="userinfo">
-      <block wx:if="{{canIUseNicknameComp && !hasUserInfo}}">
-        <button class="avatar-wrapper" open-type="chooseAvatar" bind:chooseavatar="onChooseAvatar">
-          <image class="avatar" src="{{userInfo.avatarUrl}}"></image>
-        </button>
-        <view class="nickname-wrapper">
-          <text class="nickname-label">昵称</text>
-          <input type="nickname" class="nickname-input" placeholder="请输入昵称" bind:change="onInputChange" />
-        </view>
-      </block>
-      <block wx:elif="{{!hasUserInfo}}">
-        <button wx:if="{{canIUseGetUserProfile}}" bindtap="getUserProfile"> 获取头像昵称 </button>
-        <view wx:else> 请使用2.10.4及以上版本基础库 </view>
-      </block>
-      <block wx:else>
-        <image bindtap="bindViewTap" class="userinfo-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
-        <text class="userinfo-nickname">{{userInfo.nickName}}</text>
-      </block>
-    </view>
-    <view class="usermotto">
-      <text class="user-motto">{{motto}}</text>
+<view class="home">
+  <view class="top-row">
+    <view class="brand">ReBear</view>
+    <view class="language-switch">
+      <button class="language-option {{language === 'zh' ? 'selected' : ''}}" data-language="zh" bindtap="changeLanguage" aria-label="切换为中文">中文</button>
+      <text class="divider">/</text>
+      <button class="language-option {{language === 'en' ? 'selected' : ''}}" data-language="en" bindtap="changeLanguage" aria-label="Switch to English">EN</button>
     </view>
   </view>
-</scroll-view>
+  <view class="tagline">{{t.tagline}}</view>
+  <view class="hero">
+    <image class="bear-image" src="/assets/bear-home.png" mode="widthFix" />
+    <view class="caption">{{t.caption}}</view>
+  </view>
+  <view class="headline {{language === 'en' ? 'headline-en' : ''}}">{{t.headline}}</view>
+  <view class="description">{{t.description}}</view>
+  <view class="footer">
+    <button class="start-button" bindtap="startMaking">{{t.start}}</button>
+    <view class="note">{{t.note}}</view>
+  </view>
+</view>
