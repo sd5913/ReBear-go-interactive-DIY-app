@@ -1,11 +1,13 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/logs/logs"
+    "pages/fabric/fabric",
+    "pages/design/design",
+    "pages/guide/guide"
   ],
   "window": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "Weixin",
+    "navigationBarTitleText": "ReBear",
     "navigationBarBackgroundColor": "#ffffff"
   },
   "style": "v2",

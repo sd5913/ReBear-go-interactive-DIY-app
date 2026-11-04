@@ -1,0 +1,20 @@
+<view class="fabric-page">
+ <block wx:if="{{!editing}}">
+  <view class="step">STEP 1 / 3</view><view class="heading">{{t.heading}}</view><view class="intro">{{t.intro}}</view>
+  <view wx:if="{{!items.length}}" class="empty"><view class="plus">+</view><view class="empty-title">{{t.empty}}</view><view>{{t.emptyHint}}</view></view>
+  <view wx:for="{{items}}" wx:key="id" class="card">
+   <image src="{{item.image}}" class="thumb" mode="aspectFill"/><view class="info"><view class="card-title">{{t.fabric}} {{index + 1}}</view><view>{{item.width}} × {{item.height}} cm</view><view class="actions"><button data-id="{{item.id}}" bindtap="edit">{{t.edit}}</button><button data-id="{{item.id}}" bindtap="remove">{{t.remove}}</button></view></view>
+  </view>
+  <button class="wide" bindtap="add">{{t.add}}</button>
+  <view class="bottom"><button class="wide" disabled="{{!items.length}}" bindtap="preview">{{items.length ? t.preview : t.disabled}}</button></view>
+ </block>
+ <block wx:else>
+  <view class="heading">{{t.mark}}</view><view class="intro">{{t.hint}}</view>
+  <movable-area class="photo-area"><image src="{{image}}" mode="scaleToFill" class="photo"/><movable-view class="selection" direction="all" x="{{x}}" y="{{y}}" style="width:{{selectionSize}}%;height:{{selectionSize}}%" bindchange="move" out-of-bounds="{{false}}"/></movable-area>
+  <view class="region-label">{{t.region}}</view><slider min="20" max="100" value="{{selectionSize}}" bindchange="resize" activeColor="#292929"/>
+  <button class="plain" bindtap="choosePhoto">{{t.replace}}</button>
+  <view class="field"><text>{{t.width}}</text><input type="digit" value="{{width}}" data-field="width" bindinput="input" placeholder="38"/></view>
+  <view class="field"><text>{{t.height}}</text><input type="digit" value="{{height}}" data-field="height" bindinput="input" placeholder="42"/></view>
+  <view class="bottom"><button class="wide" bindtap="save">{{t.save}}</button><button class="plain" bindtap="cancel">{{t.cancel}}</button></view>
+ </block>
+</view>

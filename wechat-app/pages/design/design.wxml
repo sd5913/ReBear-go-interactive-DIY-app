@@ -1,0 +1,15 @@
+<view class="page">
+<view class="step">STEP 2 / 3</view><view class="heading">{{t.heading}}</view>
+<view class="bear-panel"><view class="bear"><view class="shape ear left-ear" style="background-image:url('{{preview[2]}}')"></view><view class="shape ear right-ear" style="background-image:url('{{preview[2]}}')"></view><view class="shape body" style="background-image:url('{{preview[1]}}')"></view><view class="shape arm left-arm" style="background-image:url('{{preview[3]}}')"></view><view class="shape arm right-arm" style="background-image:url('{{preview[3]}}')"></view><view class="shape leg left-leg" style="background-image:url('{{preview[4]}}')"></view><view class="shape leg right-leg" style="background-image:url('{{preview[4]}}')"></view><view class="shape head" style="background-image:url('{{preview[0]}}')"><text>•　•</text><view class="nose">ᴥ</view></view></view><view class="demo">{{t.demo}}</view></view>
+<view class="tabs"><view wx:for="{{parts}}" wx:key="index" class="tab {{part === index ? 'active' : ''}}" data-index="{{index}}" bindtap="selectPart">{{item.name}} {{item.done ? '✓' : ''}}</view></view>
+<view class="row"><text class="part-title">{{t.parts[part]}} · {{t.piece}}</text><text>{{pieces.length}} / {{slots.length}} {{t.placed}}</text></view><view class="hint">{{t.hint}}</view>
+<view class="fabrics"><view wx:for="{{items}}" wx:key="id" class="fabric-tab {{fabricIndex === index ? 'active' : ''}}" data-index="{{index}}" bindtap="selectFabric">{{t.fabric}} {{index + 1}}</view></view>
+<view wx:if="{{items.length}}" class="hint">{{t.size}} · {{items[fabricIndex].width}} × {{items[fabricIndex].height}} cm</view>
+<movable-area class="cloth"><image class="cloth-image" src="{{items[fabricIndex].image}}" mode="scaleToFill"/>
+<movable-view wx:for="{{pieces}}" wx:key="index" wx:if="{{item.fabricId === items[fabricIndex].id}}" class="piece-wrap {{selected === index ? 'chosen' : ''}}" direction="all" x="{{item.x}}" y="{{item.y}}" data-index="{{index}}" bindchange="move" bindtap="pick"><view class="piece part-{{part}}" style="transform:rotate({{item.angle}}deg)"><text>{{t.parts[part]}} {{item.label}}</text></view></movable-view>
+</movable-area>
+<view class="tray"><view wx:for="{{slots}}" wx:key="index" class="slot" data-index="{{index}}" bindtap="addPiece">{{item.label}} {{item.placed ? '✓' : '+'}}</view></view>
+<view class="actions"><button bindtap="rotate">{{t.rotate}}</button><button bindtap="reset">{{t.reset}}</button></view>
+<button class="primary" bindtap="confirm" disabled="{{pieces.length !== slots.length}}">{{t.confirm}}</button>
+<button class="primary" bindtap="guide" disabled="{{!allDone}}">{{t.done}}</button><button class="plain" bindtap="back">{{t.back}}</button>
+</view>
