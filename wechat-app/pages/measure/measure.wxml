@@ -1,0 +1,15 @@
+<view class="measure-page">
+
+ <view class="heading">{{phase===0?t.paperTitle:phase===1?t.clothTitle:t.resultTitle}}</view>
+ <view class="intro" wx:if="{{phase!==2}}">{{phase===0?t.paperHint:t.clothHint}}</view>
+ <view class="canvas-wrap" hidden="{{phase===2}}" style="width:{{stageW}}px;height:{{stageH}}px">
+  <canvas type="2d" id="photoCanvas" style="width:{{stageW}}px;height:{{stageH}}px" bindtouchstart="touchStart" catchtouchmove="touchMove" bindtouchend="touchEnd" bindtouchcancel="touchCancel"/>
+ </view>
+ <block wx:if="{{phase!==2}}"><view class="count">{{t.gestures}}</view></block>
+
+ <block wx:if="{{phase===2}}"><view class="preview-box"><image class="preview" src="{{preview}}" mode="aspectFit"/></view><view class="result-box"><view>{{t.bbox}}</view><view class="big">{{result.width}} × {{result.height}} cm</view><view class="result-row">{{t.area}} · {{result.area}} cm²</view><view class="edge-label">{{t.edges}}</view><view>{{result.edges}} cm</view></view><view class="intro">{{t.trial}}</view></block>
+ <view class="error" wx:if="{{error}}">{{error}}</view><view class="loading" wx:if="{{busy}}">{{phase===2?t.saving:ready?t.working:t.loading}}…</view>
+ <view class="soft-note">{{t.flat}}</view><view class="demo-note">{{t.demoLimit}}</view>
+ <view class="controls"><button wx:if="{{phase!==2}}" class="primary" disabled="{{busy || !ready || (phase===0?paper.length:cloth.length)!==4}}" bindtap="next">{{phase===0?t.paperNext:t.clothNext}}</button><button wx:else class="primary" disabled="{{busy}}" bindtap="save">{{t.save}}</button><button wx:if="{{phase>0}}" class="secondary" disabled="{{busy}}" bindtap="back">{{phase===2?t.retry:t.back}}</button><button class="plain" disabled="{{busy}}" bindtap="replace">{{t.replace}}</button><button class="plain" disabled="{{busy}}" bindtap="exit">{{t.cancel}}</button></view>
+ <canvas type="2d" id="processCanvas" class="process-canvas"/>
+</view>

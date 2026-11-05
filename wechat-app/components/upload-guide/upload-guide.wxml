@@ -1,0 +1,22 @@
+<view wx:if="{{visible}}" class="guide-mask" catchtouchmove="stop" catchtap="stop">
+ <view class="guide-dialog" role="dialog" aria-modal="true" aria-label="{{t.counter}}" catchtap="stop">
+  <view class="guide-header"><view class="guide-brand">Rebear</view><view class="guide-counter">{{step===0?t.hello:step+' / 4'}}</view><button class="guide-close" bindtap="skip" aria-label="{{t.close}}">×</button></view>
+  <scroll-view class="guide-scroll {{step===0?'welcome-scroll':''}}" scroll-y="{{true}}" scroll-into-view="guide-step-{{step}}">
+   <view id="guide-step-{{step}}"><view wx:if="{{step===0}}" class="welcome"><image class="welcome-bear" src="{{artRoot}}welcome-bear.png" mode="aspectFit"/><view class="speech-bubble">{{t.welcome}}</view><view class="welcome-dots"><view class="welcome-dot"></view><view class="welcome-dot"></view><view class="welcome-dot"></view><view class="welcome-dot"></view></view></view>
+   <view wx:else class="guide-step">
+    <view class="guide-title">{{t.steps[step-1].title}}</view>
+    <view class="guide-body">{{t.steps[step-1].body}}</view>
+    <view class="guide-illustration">
+     <image wx:if="{{step===1}}" class="guide-image" src="{{artRoot}}upload.png" mode="aspectFit"/>
+     <image wx:if="{{step===2}}" class="guide-image" src="{{artRoot}}photo.png" mode="aspectFit"/>
+     <image wx:if="{{step===3}}" class="guide-image" src="{{artRoot}}a4.gif" mode="aspectFit"/>
+     <image wx:if="{{step===4}}" class="guide-image" src="{{artRoot}}fabric.gif" mode="aspectFit"/>
+    </view>
+    <view class="guide-hint">{{t.steps[step-1].hint}}</view>
+    <view class="guide-dots"><view class="guide-dot {{step===1?'current':''}}"></view><view class="guide-dot {{step===2?'current':''}}"></view><view class="guide-dot {{step===3?'current':''}}"></view><view class="guide-dot {{step===4?'current':''}}"></view></view>
+   </view>
+   </view>
+  </scroll-view>
+  <view class="guide-footer"><button class="guide-primary" bindtap="next">{{step===0?t.start:step===4?t.done:t.next}} →</button><view class="guide-links"><button wx:if="{{step>0}}" class="guide-link" bindtap="previous">{{t.previous}}</button><button class="guide-link" bindtap="skip">{{t.skip}}</button></view></view>
+ </view>
+</view>

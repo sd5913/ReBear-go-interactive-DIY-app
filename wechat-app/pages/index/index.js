@@ -1,11 +1,10 @@
 const messages = {
   zh: {
-    tagline: 'Give old clothes a new life.',
-    caption: '小熊示例 / 3D 效果占位',
-    headline: '让旧衣服变成\n独一无二的布偶小熊',
+  caption: '小熊示例 / 3D 效果占位',
+    
     description: '用你自己的布料，创造专属小熊。',
     start: '开始制作',
-    note: '无需登录，即可开始',
+    
     dialogTitle: '开始制作',
     dialogContent: '首页已完成，下一步将接入布料列表页面。',
     confirm: '知道了'
@@ -33,7 +32,7 @@ function saveLanguage(language) {
 const i18n = { messages, getLanguage, saveLanguage }
 
 
-Object.assign(i18n.messages.zh,{headline:'把舍不得的旧衣，\n变成抱得住的回忆。',description:'一块旧布，也能有新的陪伴。',start:'开始制作我的小熊 →',note:'无需登录，带一件旧衣就可以开始。',prepare:'先把布料准备好',prepareHint:'上传旧衣 · 标记选区 · 填写尺寸',story:'把故事缝进小熊',storyHint:'一块旧布，也能有新的陪伴',home:'首页',studio:'制作工坊',guide:'制作指南',badge:'小熊营业中 ♡',aboutTitle:'旧衣新生计划',about:'把舍不得的旧衣，做成可以陪伴你的小熊。先准备布料，再设计拼布，最后查看制作指南。',notReady:'先完成小熊的五个部位设计，就能查看对应清单。'});
+Object.assign(i18n.messages.zh,{description:'一块旧布，也能有新的陪伴。',start:'开始制作',prepare:'准备布料',story:'把故事缝进小熊',home:'首页',studio:'制作工坊',guide:'制作指南',badge:'小熊营业中 ♡',aboutTitle:'旧衣新生计划',about:'把舍不得的旧衣，做成可以陪伴你的小熊。先准备布料，再设计拼布，最后查看制作指南。',notReady:'先完成小熊的五个部位设计，就能查看对应清单。'});
 Object.assign(i18n.messages.en,{headline:'Turn treasured clothes\ninto memories to hold.',description:'Old fabric, a new companion.',start:'Start Creating My Bear →',note:'No sign-in needed. Bring a piece of old clothing.',prepare:'Prepare Your Fabric',prepareHint:'Add a photo · Select · Measure',story:'Sew in Your Story',storyHint:'Old fabric, a new companion',home:'Home',studio:'Workshop',guide:'Making Guide',badge:'Bear workshop is open ♡',aboutTitle:'Give Clothes a New Life',about:'Turn treasured clothing into a bear. Prepare your fabric, design each part, then explore the making guide.',notReady:'Finish designing all five parts to view your checklist.'});
 Page({
   data: { language: 'zh', t: i18n.messages.zh },

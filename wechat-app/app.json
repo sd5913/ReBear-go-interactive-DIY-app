@@ -3,7 +3,8 @@
     "pages/index/index",
     "pages/fabric/fabric",
     "pages/design/design",
-    "pages/guide/guide"
+    "pages/guide/guide",
+    "pages/measure/measure"
   ],
   "window": {
     "navigationBarTextStyle": "black",

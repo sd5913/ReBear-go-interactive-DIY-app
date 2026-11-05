@@ -1,7 +1,8 @@
 {
   "navigationBarTitleText": "添加布料",
   "usingComponents": {
-    "rb-bear": "/components/rb-bear/rb-bear"
+    "rb-bear": "/components/rb-bear/rb-bear",
+    "upload-guide": "/components/upload-guide/upload-guide"
   },
   "navigationBarBackgroundColor": "#fffbf2",
   "navigationBarTextStyle": "black"
