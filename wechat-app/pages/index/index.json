@@ -1,1 +1,8 @@
-{"navigationBarTitleText":"ReBear","navigationBarBackgroundColor":"#ffffff","navigationBarTextStyle":"black","usingComponents":{}}
+{
+  "navigationBarTitleText": "ReBear",
+  "navigationBarBackgroundColor": "#fffbf2",
+  "navigationBarTextStyle": "black",
+  "usingComponents": {
+    "rb-bear": "/components/rb-bear/rb-bear"
+  }
+}

@@ -8,7 +8,8 @@
   "window": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "ReBear",
-    "navigationBarBackgroundColor": "#ffffff"
+    "navigationBarBackgroundColor": "#fffbf2",
+    "backgroundColor": "#fffbf2"
   },
   "style": "v2",
   "componentFramework": "glass-easel",
