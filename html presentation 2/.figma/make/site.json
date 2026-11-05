@@ -1,0 +1,10 @@
+{
+  "description": "Upcycle old clothes into personalized teddy bears with fabric uploads, custom design tools, and step-by-step cutting guides.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
