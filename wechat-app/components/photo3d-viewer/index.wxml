@@ -1,0 +1,14 @@
+<xr-scene>
+  <xr-assets bind:loaded="assetsLoaded" bind:error="assetFailed">
+    <xr-asset-load type="gltf" asset-id="bear-model" src="{{src}}"/>
+  </xr-assets>
+  <xr-node>
+    <xr-node node-id="camera-target" position="0 0 0"/>
+    <xr-gltf model="bear-model" node-id="bear"/>
+    <xr-camera position="0 0.12 2.8" target="camera-target" fov="40" clear-color="0.985 0.969 0.939 1" camera-orbit-control=""/>
+  </xr-node>
+  <xr-node node-id="lights">
+    <xr-light type="ambient" color="1 1 1" intensity="1.2"/>
+    <xr-light type="directional" rotation="30 25 0" color="1 0.98 0.95" intensity="1.1"/>
+  </xr-node>
+</xr-scene>

@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "小熊预览",
+  "usingComponents": {
+    "photo3d-viewer": "/components/photo3d-viewer/index"
+  }
+}

@@ -1,0 +1,60 @@
+<view class="preview-page">
+  <view class="switch" aria-label="{{t.title}}">
+    <button class="switch-button {{mode === 'sample' ? 'current' : ''}}" data-mode="sample" bindtap="switchMode">{{t.sample}}</button>
+    <button class="switch-button {{mode === 'mine' ? 'current' : ''}}" data-mode="mine" bindtap="switchMode">{{t.mine}}</button>
+  </view>
+
+  <view class="preview-card">
+    <view class="stages">
+      <button class="stage-button {{stage === 'photo' ? 'current' : ''}}" data-stage="photo" bindtap="switchStage">{{t.photo}}</button>
+      <button class="stage-button {{stage === 'model' ? 'current' : ''}}" data-stage="model" bindtap="switchStage">{{t.model}}</button>
+    </view>
+    <block wx:if="{{stage === 'photo'}}">
+      <image wx:if="{{photoSrc}}" class="bear-photo" src="{{photoSrc}}" mode="aspectFit" bindtap="openPhoto" aria-label="{{t.openPhoto}}"/>
+      <view wx:else class="empty-preview">{{mode === 'mine' && !complete ? t.missingParts : t.noPhoto}}</view>
+      <view wx:if="{{photoSrc}}" class="preview-caption">{{t.photoHint}}</view>
+    </block>
+    <block wx:else>
+      <view wx:if="{{modelSrc}}" class="model-frame" style="width:{{viewSize}}px;height:{{viewSize}}px">
+        <photo3d-viewer wx:if="{{showViewer}}" class="model-viewer" src="{{modelSrc}}" width="{{pixelSize}}" height="{{pixelSize}}" disable-scroll bind:loaded="viewerLoaded" bind:failed="viewerFailed"/>
+        <view wx:if="{{modelStatus === 'loading'}}" class="model-message">{{t.load}}</view>
+        <view wx:if="{{modelStatus === 'error'}}" class="model-message">
+          <text>{{modelError}}</text>
+          <button class="compact" bindtap="startViewer">{{t.retry}}</button>
+        </view>
+      </view>
+      <view wx:else class="empty-preview">{{mode === 'sample' ? t.noSampleModel : t.noModel}}</view>
+      <view wx:if="{{modelStatus === 'ready' && modelSrc}}" class="preview-caption">{{t.modelHint}}</view>
+    </block>
+  </view>
+
+  <view class="section-title">{{t.swatches}}</view>
+  <view class="material-card">
+    <view class="material-row" wx:for="{{rows}}" wx:for-item="row" wx:key="part">
+      <text class="material-part">{{row.part}}</text>
+      <view class="materials">
+        <text wx:if="{{!row.fabrics.length}}" class="muted">{{t.unassigned}}</text>
+        <view class="material" wx:for="{{row.fabrics}}" wx:for-item="fabric" wx:key="id">
+          <image class="swatch" src="{{fabric.image}}" mode="aspectFill"/>
+          <view>{{fabric.name || t.fabric}}<text wx:if="{{fabric.pieces.length}}" class="muted"> · {{fabric.ref}}</text></view>
+          <view class="piece-labels" wx:if="{{fabric.pieces.length}}">
+            <text wx:for="{{fabric.pieces}}" wx:for-item="piece" wx:key="*this">{{piece}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+  <view wx:if="{{mode === 'sample'}}" class="note">{{t.sampleNote}}</view>
+  <view wx:else class="mine-controls">
+    <view class="note">{{complete ? t.mineNote : t.missingParts}}</view>
+    <view class="action-pair">
+      <button class="compact" disabled="{{!complete || exporting}}" bindtap="exportBoard">{{t.exportBoard}}</button>
+      <button class="compact" disabled="{{!complete}}" bindtap="copyPrompt">{{t.copyPrompt}}</button>
+    </view>
+    <view class="action-pair">
+      <button class="compact accent" disabled="{{!complete}}" bindtap="importPhoto">{{photoSrc ? t.replacePhoto : t.importPhoto}}</button>
+      <button class="compact accent" disabled="{{!photoSrc}}" bindtap="importModel">{{t.importModel}}</button>
+    </view>
+  </view>
+  <canvas type="2d" id="fabric-sheet" class="export-canvas"/>
+</view>

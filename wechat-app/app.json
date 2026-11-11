@@ -4,7 +4,8 @@
     "pages/fabric/fabric",
     "pages/design/design",
     "pages/guide/guide",
-    "pages/measure/measure"
+    "pages/measure/measure",
+    "pages/photo-3d/index"
   ],
   "window": {
     "navigationBarTextStyle": "black",
