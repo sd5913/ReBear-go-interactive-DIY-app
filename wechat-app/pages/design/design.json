@@ -1,8 +1,6 @@
 {
   "navigationBarTitleText": "设计你的小熊",
   "usingComponents": {
-    "rb-bear": "/components/rb-bear/rb-bear"
-  },
-  "navigationBarBackgroundColor": "#fffbf2",
-  "navigationBarTextStyle": "black"
+    "rebear-preview": "/components/rebear-preview/index"
+  }
 }

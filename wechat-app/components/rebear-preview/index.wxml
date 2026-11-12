@@ -1,0 +1,9 @@
+<view class="preview">
+  <canvas id="canvas" type="webgl" class="canvas" hidden="{{failed}}"
+    bindtouchstart="orbitStart" catchtouchmove="orbitMove" bindtouchend="orbitEnd" bindtouchcancel="orbitEnd"/>
+  <view wx:if="{{failed}}" class="hint">{{t.error}}</view>
+  <block wx:else>
+    <view class="views"><button size="mini" bindtap="front">{{t.front}}</button><button size="mini" bindtap="back">{{t.back}}</button></view>
+    <view class="hint">{{textureError ? t.texture : t.hint}}</view>
+  </block>
+</view>
