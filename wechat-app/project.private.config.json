@@ -1,6 +1,23 @@
 {
-  "projectname": "ReBear 新版 UI",
+  "projectname": "ReBear%20%E6%96%B0%E7%89%88%20UI",
   "setting": {
-    "compileHotReLoad": false
-  }
+    "compileHotReLoad": true,
+    "urlCheck": true,
+    "coverView": true,
+    "lazyloadPlaceholderEnable": false,
+    "skylineRenderEnable": false,
+    "preloadBackgroundData": false,
+    "autoAudits": false,
+    "useApiHook": true,
+    "showShadowRootInWxmlPanel": true,
+    "useStaticServer": false,
+    "useLanDebug": false,
+    "showES6CompileOption": false,
+    "useGlassEaselForWxml": false,
+    "checkInvalidKey": true,
+    "ignoreDevUnusedFiles": true,
+    "bigPackageSizeSupport": false
+  },
+  "libVersion": "3.18.0",
+  "condition": {}
 }
