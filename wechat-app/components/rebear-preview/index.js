@@ -1,12 +1,13 @@
 const {createBear}=require('./engine');
 
 const copy={
-  zh:{front:'看正面',back:'看背面',hint:'拖动小熊旋转，也可以把下方布料拖到熊身上。',error:'3D 预览暂时无法开启，仍可继续摆放裁片。',texture:'有布料图片无法加载，请返回布料页检查照片。'},
-  en:{front:'Front',back:'Back',hint:'Drag the bear to rotate it, or drag a fabric onto it.',error:'3D preview is unavailable. You can still place pattern pieces.',texture:'A fabric image could not be loaded. Check the photo on the fabric page.'}
+  zh:{viewHint:'拖动小熊查看各个角度。',front:'看正面',back:'看背面',hint:'拖动小熊旋转，也可以把下方布料拖到熊身上。',error:'3D 预览暂时无法开启，仍可继续摆放裁片。',texture:'有布料图片无法加载，请返回布料页检查照片。'},
+  en:{viewHint:'Drag the bear to view it from different angles.',front:'Front',back:'Back',hint:'Drag the bear to rotate it, or drag a fabric onto it.',error:'3D preview is unavailable. You can still place pattern pieces.',texture:'A fabric image could not be loaded. Check the photo on the fabric page.'}
 };
 
 Component({
   properties:{
+    readOnly:{type:Boolean,value:false},
     fabrics:{type:Array,value:[]},
     assignments:{type:Object,value:{}},
     language:{type:String,value:'zh',observer(language){this.setData({t:copy[language]||copy.zh});}}

@@ -1,0 +1,21 @@
+<import src="../../templates/delete-design.wxml"/>
+<view class="design-page with-nav {{managing ? 'managing' : ''}}">
+  <view class="heading-row"><view class="page-heading">{{t.title}}</view><button wx:if="{{records.length}}" bindtap="toggleManage">{{managing ? t.done : t.edit}}</button></view>
+  <view class="muted">{{records.length ? t.savedPrefix + records.length + t.savedSuffix : t.noSaved}}</view>
+  <view wx:if="{{error}}" class="muted">{{error}}</view>
+  <view wx:if="{{managing}}" class="management"><button bindtap="selectAll">{{selectedIds.length === records.length ? t.deselectAll : t.selectAll}}</button><text>{{t.selectHint}}</text></view>
+  <view wx:if="{{records.length}}" class="design-grid">
+    <view wx:for="{{records}}" wx:key="id" class="scheme-card paper-card {{item.selected ? 'selected' : ''}}">
+      <view class="card-open" data-id="{{item.id}}" bindtap="open">
+        <view class="scheme-art"><rb-bear head="{{item.thumbnails[0]}}" body="{{item.thumbnails[1]}}" ears="{{item.thumbnails[2]}}" arms="{{item.thumbnails[3]}}" legs="{{item.thumbnails[4]}}"/></view>
+        <view class="scheme-info"><view class="scheme-name">{{item.name}}</view><view class="scheme-date">{{item.date}}</view></view>
+        <view wx:if="{{managing}}" class="selection-box {{item.selected ? 'checked' : ''}}">{{item.selected ? '✓' : ''}}</view>
+      </view>
+      <view wx:if="{{!managing}}" class="card-actions"><button data-id="{{item.id}}" bindtap="edit">{{t.edit}}</button><button data-id="{{item.id}}" bindtap="remove">{{t.remove}}</button></view>
+    </view>
+  </view>
+  <view wx:else class="empty-state"><rb-bear/><view class="dialog-title">{{t.empty}}</view><view class="muted">{{t.emptyHint}}</view><button class="action primary" bindtap="upload">{{t.upload}}</button></view>
+  <view wx:if="{{managing}}" class="bulk-actions"><text>{{t.selectedPrefix}}{{selectedIds.length}}{{t.selectedSuffix}}</text><button disabled="{{!selectedIds.length}}" bindtap="removeSelected">{{t.deleteSelected}}</button></view>
+</view>
+<bottom-nav active="designs" language="{{language}}"/>
+<template wx:if="{{deleteIds.length}}" is="delete-design" data="{{t}}"/>

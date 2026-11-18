@@ -45,6 +45,8 @@ const copy = {
   }
 };
 
+const { findDesign } = require('../../utils/design-records');
+
 const {
   faces,
   armLabels,
@@ -69,7 +71,7 @@ Page({
     drag: null
   },
 
-  onLoad() {
+  onLoad(options) {
     let language = 'zh';
     let design = {};
 
@@ -78,7 +80,16 @@ Page({
       design = wx.getStorageSync('rebear-design') || {};
     } catch (e) {}
 
-    this.design = migrateDesign(design);
+    this.design = {};
+    this.library = [];
+    try { this.record = options.id ? findDesign(options.id) : null; }
+    catch (_) { this.record = null; }
+    if (options.id && !this.record) {
+      this.invalidRecord = true;
+      wx.reLaunch({url:'/pages/designs/index'});
+      return;
+    }
+    this.design = migrateDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : design);
     this.library = [];
 
     this.setData({
@@ -90,19 +101,29 @@ Page({
       title: copy[language].title
     });
 
-    this.getOpenerEventChannel()?.on('selectedFabrics', ({ ids }) => {
-      this.selectedIds = new Set(ids);
-      this.refreshFabrics();
-    });
+    const channel = this.getOpenerEventChannel();
+    if (channel && typeof channel.on === 'function') {
+      channel.on('selectedFabrics', ({ ids }) => {
+        this.selectedIds = new Set(ids);
+        this.refreshFabrics();
+      });
+    }
   },
 
   onShow() {
+    if (this.invalidRecord) return;
     try {
       this.library = wx.getStorageSync('rebear-fabrics') || [];
     } catch (e) {
       this.library = [];
     }
 
+    if (this.record) {
+      const library = new Map(this.library.map(fabric => [fabric.id, fabric]));
+      this.record.fabrics.forEach(fabric => library.set(fabric.id, fabric));
+      this.library = Array.from(library.values());
+      this.selectedIds = new Set(this.record.fabrics.map(fabric => fabric.id));
+    }
     this.refreshFabrics();
   },
 
@@ -492,6 +513,7 @@ Page({
   },
 
   store() {
+    if (this.record) return true;
     try {
       wx.setStorageSync('rebear-design', this.design);
       return true;
@@ -519,8 +541,13 @@ Page({
       return;
     }
 
+    const design = JSON.parse(JSON.stringify(this.design));
+    Object.values(design).forEach(record => record.pieces.forEach(piece => {
+      piece.placement = this.texturePlacement(piece);
+    }));
     wx.navigateTo({
-      url: '/pages/guide/guide'
+      url: '/pages/guide/guide' + (this.record ? '?id=' + encodeURIComponent(this.record.id) : ''),
+      success: page => page.eventChannel.emit('design', { design, fabrics: this.library })
     });
   },
 

@@ -1,0 +1,8 @@
+<template name="upload-sheet">
+  <view class="sheet-title">{{t.photoTitle}}</view>
+  <view class="sheet-text">{{t.photoHint}}</view>
+  <button class="dark" data-source="camera" bindtap="choosePhoto">{{t.camera}}</button>
+  <button data-source="album" bindtap="choosePhoto">{{t.album}}</button>
+  <button bindtap="sample">{{t.sample}}</button>
+  <button bindtap="closeSheet">{{t.cancelSheet}}</button>
+</template>

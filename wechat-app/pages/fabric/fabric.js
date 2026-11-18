@@ -5,10 +5,25 @@ const texts = {
 Object.assign(texts.zh,{steps:['01 准备布料','02 拼布设计','03 制作指南'],heading:'上传您的旧衣服',empty:'还没有布料呢~',emptyHint:'添加一件旧衣服，让它继续陪伴你',preview:'布料准备好，去设计小熊 →',disabled:'布料准备好，去设计小熊 →',mark:'留下可以裁剪的这一块。',hint:'拖动选区，再填写这块布实际量出的宽高。',save:'保存这块布料 ✓',sample:'先用示例布料试一试',sampleMore:'再试一块示例格纹布',saved:'已保存',measure:'照片无法代替实际测量。请用尺子量出选区对应的真实宽高。',photoTitle:'把你的旧衣带进来',photoHint:'选择一张清晰的照片，下一步标记能裁剪的区域。',camera:'拍一张衣物照片',album:'从相册中选择',keep:'保留这块布料',deleteHint:'这块布料将从本次设计中移除，分配在它上面的裁片会恢复为未摆放。',cancelSheet:'取消',sampleName:['条纹','格纹'],sizeHint:'可用区域'});
 Object.assign(texts.en,{steps:['01 Fabric','02 Patchwork','03 Guide'],heading:'Old fabric. A new story.',intro:'Add a clothing photo, select usable fabric and measure it.',empty:'No fabric yet',emptyHint:'Bring a piece of clothing you no longer wear. Let its familiar pattern stay with you.',preview:'Fabric Ready · Design My Bear →',disabled:'Fabric Ready · Design My Bear →',mark:'Keep the part you can use.',hint:'Move the selection and enter its measured width and height.',save:'Save This Fabric ✓',sample:'Try a sample fabric',sampleMore:'Try a checked sample too',saved:'Saved',libraryNote:'Fabrics are numbered automatically. Edit, replace or delete them anytime. You choose what your bear will wear.',measure:'A photo cannot measure fabric. Use a ruler to measure the selected area.',photoTitle:'Bring your old clothes along',photoHint:'Choose a clear photo, then mark the usable area.',camera:'Take a Clothing Photo',album:'Choose from Album',keep:'Keep This Fabric',deleteHint:'This fabric will be removed. Pieces assigned to it will need to be placed again.',cancelSheet:'Cancel',sampleName:['Stripes','Checks'],sizeHint:'Usable area'});
 Object.assign(texts.zh,{a4:'A4 估算',photoHint:'将单层布料和完整 A4 纸平铺在一起拍照，随后点选四角测量。',manual:'用尺子手动测量',a4Edit:'重新标定 A4',rangeHint:'外接范围，实际形状以选区为准'});Object.assign(texts.en,{a4:'A4 estimate',photoHint:'Photograph single-layer fabric beside a complete A4 sheet, then mark the corners to measure.',manual:'Measure Manually',a4Edit:'Recalibrate A4',rangeHint:'Bounding size; actual fabric follows the selected outline'});
+Object.assign(texts.zh, {title: '布料库', preview: '选布料，开始设计', photoTitle: '上传布料', photoHint: '选择照片，标记布料并测量尺寸。', camera: '拍摄照片', album: '从相册选择', selected: '已选', selectHint: '选择本次设计要用的布料', deleteHint: '相关裁片将取消分配，已保存的设计稿会保留。'});
+Object.assign(texts.en, {title: 'Fabric Library', preview: 'Design with Selected Fabrics', selected: 'Selected', selectHint: 'Choose fabrics for this design'});
 Page({
- data:{guideVisible:false,guideLanguage:'zh',t:texts.zh,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
- onLoad(){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.setData({items:wx.getStorageSync('rebear-fabrics')||[]})}catch(e){}},
- onShow(){try{this.setData({items:wx.getStorageSync('rebear-fabrics')||[]})}catch(e){}this.maybeShowUploadGuide()},
+ data:{language:'zh',selectedCount:0,guideVisible:false,guideLanguage:'zh',t:texts.zh,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
+ onLoad(options){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.upload==='1'||options.sample==='1'){this._uploadGuideShownThisVisit=true;if(options.sample==='1')this.sample();else this.add()}},
+ onShow(){try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}this.maybeShowUploadGuide()},
+ applyItems(items){
+   const previous=new Set(this.data.items.map(item=>item.id));
+   if(!this.selectedIds)this.selectedIds=new Set(items.map(item=>item.id));
+   items.forEach(item=>{if(!previous.has(item.id))this.selectedIds.add(item.id)});
+   const available=new Set(items.map(item=>item.id));
+   this.selectedIds=new Set([...this.selectedIds].filter(id=>available.has(id)));
+   this.setData({items:items.map(item=>({...item,selected:this.selectedIds.has(item.id)})),selectedCount:this.selectedIds.size});
+ },
+ selectFabric(e){
+   const id=e.currentTarget.dataset.id;
+   if(this.selectedIds.has(id))this.selectedIds.delete(id);else this.selectedIds.add(id);
+   this.applyItems(this.data.items);
+ },
  // 每次重新进入上传页，空库就显示导览；相机/相册临时返回不重复弹。
  maybeShowUploadGuide(){
    if(this._uploadGuideShownThisVisit||this.data.guideVisible||this.data.editing||this.data.sheet)return;
@@ -27,7 +42,7 @@ Page({
  edit(e){const item=this.data.items.find(i=>i.id===e.currentTarget.dataset.id);if(!item)return;if(item.measurement&&item.measurement.method==='a4-four-corners'){wx.navigateTo({url:'/pages/measure/measure?id='+encodeURIComponent(item.id)});return}this.editId=item.id;this.region=item.region||{x:0,y:0};this.setData({editing:true,image:item.original||item.image,width:item.width,height:item.height,selectionSize:item.selectionSize||60,x:(item.region&&item.region.x)||0,y:(item.region&&item.region.y)||0});wx.setNavigationBarTitle({title:this.data.t.editTitle})},
  cancel(){this.setData({editing:false});wx.setNavigationBarTitle({title:this.data.t.title})},
  toast(title){wx.showToast({title,icon:'none'})},
- persist(items){try{wx.setStorageSync('rebear-fabrics',items);this.setData({items});return true}catch(e){this.toast(this.data.t.storage);return false}},
+ persist(items){try{wx.setStorageSync('rebear-fabrics',items);this.applyItems(items);return true}catch(e){this.toast(this.data.t.storage);return false}},
  save(){
  if(this.saving)return;const w=Number(this.data.width),h=Number(this.data.height);if(!Number.isFinite(w)||!Number.isFinite(h)||w<=0||h<=0){this.toast(this.data.t.invalid);return}
  this.saving=true;wx.showLoading({title:this.data.t.save.replace(' ✓',''),mask:true});
@@ -45,5 +60,5 @@ Page({
  stop(){},
  deleteConfirmed(){const id=this.data.deleteId;if(!this.persist(this.data.items.filter(i=>i.id!==id)))return;try{const d=wx.getStorageSync('rebear-design')||{};Object.keys(d).forEach(k=>{if(d[k].pieces.some(p=>p.fabricId===id)){d[k].pieces=d[k].pieces.filter(p=>p.fabricId!==id);d[k].confirmed=false}});wx.setStorageSync('rebear-design',d)}catch(e){}this.closeSheet()},
  sample(){const id='sample-stripes';if(!this.data.items.some(i=>i.id===id)){this.persist(this.data.items.concat({id,image:'/assets/sample-stripes.png',width:38,height:42,name:this.data.t.sampleName[0],selectionSize:100}))}this.closeSheet()},
- preview(){if(this.data.items.length)wx.navigateTo({url:'/pages/design/design'})}
+ preview(){if(this.data.selectedCount)wx.navigateTo({url:'/pages/design/design',success:page=>page.eventChannel.emit('selectedFabrics',{ids:[...this.selectedIds]})})}
 })

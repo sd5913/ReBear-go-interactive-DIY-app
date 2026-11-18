@@ -34,8 +34,18 @@ const i18n = { messages, getLanguage, saveLanguage }
 
 Object.assign(i18n.messages.zh,{description:'一块旧布，也能有新的陪伴。',start:'开始制作',prepare:'准备布料',story:'把故事缝进小熊',home:'首页',studio:'制作工坊',guide:'制作指南',badge:'小熊营业中 ♡',aboutTitle:'旧衣新生计划',about:'把舍不得的旧衣，做成可以陪伴你的小熊。先准备布料，再设计拼布，最后查看制作指南。',notReady:'先完成小熊的五个部位设计，就能查看对应清单。'});
 Object.assign(i18n.messages.en,{headline:'Turn treasured clothes\ninto memories to hold.',description:'Old fabric, a new companion.',start:'Start Creating My Bear →',note:'No sign-in needed. Bring a piece of old clothing.',prepare:'Prepare Your Fabric',prepareHint:'Add a photo · Select · Measure',story:'Sew in Your Story',storyHint:'Old fabric, a new companion',home:'Home',studio:'Workshop',guide:'Making Guide',badge:'Bear workshop is open ♡',aboutTitle:'Give Clothes a New Life',about:'Turn treasured clothing into a bear. Prepare your fabric, design each part, then explore the making guide.',notReady:'Finish designing all five parts to view your checklist.'});
+Object.assign(i18n.messages.zh, {
+  headline: '旧衣服，新的陪伴', tagline: '把熟悉的布料，变成自己的小熊。', start: '上传',
+  note: '拍摄或选择一张旧衣照片', photoTitle: '上传布料', photoHint: '选择照片，标记布料并测量尺寸。',
+  camera: '拍摄照片', album: '从相册选择', sample: '使用示例照片', cancelSheet: '取消', error: '操作失败，请重试'
+});
+Object.assign(i18n.messages.en, {
+  start: 'Upload', note: 'Take or choose a photo of old clothing', photoTitle: 'Upload Fabric',
+  photoHint: 'Choose a photo, mark the fabric and measure it.', camera: 'Take a Photo', album: 'Choose from Album',
+  sample: 'Use a Sample', cancelSheet: 'Cancel', error: 'Something went wrong. Please try again.'
+});
 Page({
-  data: { language: 'zh', t: i18n.messages.zh },
+  data: { language: 'zh', t: i18n.messages.zh, sheet: false },
   onLoad() {
     const language = i18n.getLanguage()
     this.setData({ language, t: i18n.messages[language] })
@@ -48,8 +58,25 @@ Page({
   },
   about(){wx.showModal({title:this.data.t.aboutTitle,content:this.data.t.about,showCancel:false,confirmText:this.data.t.confirm})},
   guide(){let d={},f=[];try{d=wx.getStorageSync('rebear-design')||{};f=wx.getStorageSync('rebear-fabrics')||[]}catch(e){};const ready=[2,2,4,2,2].every((n,i)=>d[i]&&d[i].confirmed&&d[i].pieces.length===n&&d[i].pieces.every(p=>f.some(x=>x.id===p.fabricId)));if(ready)wx.navigateTo({url:'/pages/guide/guide'});else wx.showToast({title:this.data.t.notReady,icon:'none'})},
-  startMaking() {
-    const t = this.data.t
-    wx.navigateTo({ url: '/pages/fabric/fabric' })
+  startMaking() { this.setData({ sheet: true }) },
+  closeSheet() { this.setData({ sheet: false }) },
+  stop() {},
+  sample() {
+    this.closeSheet()
+    wx.navigateTo({ url: '/pages/fabric/fabric?sample=1' })
+  },
+  choosePhoto(event) {
+    this.closeSheet()
+    wx.chooseMedia({
+      count: 1, mediaType: ['image'], sourceType: [event.currentTarget.dataset.source],
+      success: result => wx.navigateTo({
+        url: '/pages/measure/measure?returnTo=fabric',
+        success: page => page.eventChannel.emit('photo', { path: result.tempFiles[0].tempFilePath }),
+        fail: () => wx.showToast({ title: this.data.t.error, icon: 'none' })
+      }),
+      fail: error => {
+        if (!/cancel/.test(error.errMsg || '')) wx.showToast({ title: this.data.t.error, icon: 'none' })
+      }
+    })
   }
 })

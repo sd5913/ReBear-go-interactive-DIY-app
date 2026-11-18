@@ -1,0 +1,15 @@
+<import src="../../templates/delete-design.wxml"/>
+<view class="design-page">
+  <block wx:if="{{record}}">
+    <view class="page-heading">{{record.name}}</view><view class="muted">{{t.savedOn}}{{date}}</view>
+    <view class="design-preview"><rebear-preview fabrics="{{record.fabrics}}" assignments="{{assignments}}" language="{{language}}" read-only="{{true}}"/></view>
+    <view class="detail-actions"><button class="action primary" bindtap="edit">{{t.editScheme}}</button><button class="action secondary" bindtap="guide">{{t.guide}}</button></view>
+    <view class="section-heading"><view>{{t.usedFabrics}}</view><text>{{materials.length}}{{t.fabricUnit}}</text></view>
+    <view wx:for="{{materials}}" wx:key="id" class="material"><image src="{{item.image}}" mode="aspectFill"/><view><view class="material-name">{{item.displayName}}</view><view class="muted">{{item.width}} × {{item.height}} cm · {{item.parts}}</view></view></view>
+    <view class="section-heading">{{t.assignments}}</view>
+    <view wx:for="{{rows}}" wx:key="name" class="assignment-row"><view>{{item.name}} · {{item.count}}{{t.pieceUnit}}</view><view><view wx:for="{{item.assignments}}" wx:for-item="piece" wx:key="label">{{piece.label}} · {{piece.name}}</view></view></view>
+    <button class="action secondary delete-scheme" bindtap="remove">{{t.removeScheme}}</button>
+  </block>
+  <block wx:else><view class="muted">{{error}}</view><button class="action primary" bindtap="back">{{t.back}}</button></block>
+</view>
+<template wx:if="{{deleteIds.length}}" is="delete-design" data="{{t}}"/>

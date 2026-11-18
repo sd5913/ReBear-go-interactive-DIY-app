@@ -7,16 +7,16 @@
       <view class="empty-title">{{t.empty}}</view>
       <view class="empty-hint">{{t.emptyHint}}</view>
     </view>
-    <view wx:for="{{items}}" wx:key="id" class="card paper-card">
+    <view wx:for="{{items}}" wx:key="id" class="card paper-card {{item.selected ? 'selected-card' : ''}}" data-id="{{item.id}}" bindtap="selectFabric">
       <image src="{{item.image}}" class="thumb" mode="aspectFill" />
       <view class="info">
         <view class="card-title">{{t.fabric}} {{index+1}} {{item.name ? ' · '+item.name : ''}}</view>
         <view class="dimensions">{{item.width}} × {{item.height}} cm · {{item.measurement?t.a4:t.sizeHint}}</view>
-        <view class="actions"><button data-id="{{item.id}}" bindtap="remove">{{t.remove}}</button></view>
-      </view><text class="saved-badge">{{t.saved}}</text>
+        <view class="actions"><button data-id="{{item.id}}" catchtap="edit">{{t.edit}}</button><button data-id="{{item.id}}" catchtap="remove">{{t.remove}}</button></view>
+      </view><text class="saved-badge">{{item.selected ? '✓ '+t.selected : t.saved}}</text>
     </view><button class="wide {{items.length?'secondary':''}}" bindtap="add">{{t.add}}</button><button wx:if="{{!items.length}}" class="sample-button" bindtap="sample">{{t.sample}}</button>
-    <view class="library-note">{{t.libraryNote}}</view>
-    <view class="bottom"><button class="wide" disabled="{{!items.length}}" bindtap="preview">{{items.length?t.preview:t.disabled}}</button></view>
+    <view class="library-note">{{t.selectHint}} · {{selectedCount}} / {{items.length}}</view><view class="library-note">{{t.libraryNote}}</view>
+    <view class="bottom with-nav"><button class="wide" disabled="{{!selectedCount}}" bindtap="preview">{{items.length?t.preview:t.disabled}}</button></view>
   </block>
   <block wx:else>
     <view class="heading">{{t.mark}}</view>
@@ -51,3 +51,5 @@
 
 <canvas canvas-id="cropCanvas" class="crop-canvas" style="width:{{canvasWidth || 1000}}px;height:{{canvasHeight || 1000}}px" />
 <upload-guide visible="{{guideVisible}}" language="{{guideLanguage}}" bind:complete="onUploadGuideComplete" bind:skip="onUploadGuideSkip"/>
+
+<bottom-nav wx:if="{{!editing}}" active="fabric" language="{{language}}" bind:upload="add"/>
