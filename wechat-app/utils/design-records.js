@@ -1,4 +1,5 @@
 const { faces, migrateDesign } = require('./bear-layout')
+const { validatePlacements } = require('./pattern-placement')
 const STORAGE_KEY = 'rebear-saved-designs'
 
 function clone(value) {
@@ -17,11 +18,12 @@ function findDesign(id) {
 
 function isComplete(design, fabrics) {
   const available = new Set(fabrics.map(fabric => fabric.id))
-  return faces.every((ids, part) => {
+  const validation = validatePlacements(design, fabrics)
+  return validation.ready && faces.every((ids, part) => {
     const record = design[part]
     if (!record || !record.confirmed || !Array.isArray(record.pieces)) return false
     const assigned = new Set(record.pieces.filter(piece => available.has(piece.fabricId)).map(piece => piece.index))
-    return ids.every((_, index) => assigned.has(index))
+    return validation.parts[part].valid && ids.every((_, index) => assigned.has(index))
   })
 }
 

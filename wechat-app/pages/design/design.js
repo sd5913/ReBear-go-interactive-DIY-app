@@ -19,7 +19,9 @@ const copy = {
     missing: '布料已删除，请重新摆放',
     back: '返回添加布料',
     size: '实际布料尺寸',
-    confirmed: '已确认'
+    confirmed: '已确认',
+    fixPlacement: '请先调整标红裁片，避免重叠或超出布料范围。',
+    checking: '正在检查裁片位置…'
   },
   en: {
     title: 'Design Your Bear',
@@ -41,9 +43,13 @@ const copy = {
     missing: 'Fabric was deleted. Place these pieces again.',
     back: 'Back to Fabrics',
     size: 'Measured fabric size',
-    confirmed: 'Confirmed'
+    confirmed: 'Confirmed',
+    fixPlacement: 'Adjust the red pieces to keep them inside the fabric and apart.',
+    checking: 'Checking piece positions…'
   }
 };
+
+const { texturePlacement, validatePlacements } = require('../../utils/pattern-placement');
 
 const { findDesign } = require('../../utils/design-records');
 
@@ -61,11 +67,15 @@ Page({
     part: 0,
     parts: [],
     pieces: [],
+    placedGhosts: [],
     slots: [],
     selected: -1,
     fabricIndex: 0,
     confirmed: [],
     allDone: false,
+    canConfirm: false,
+    placementReady: false,
+    pieceErrors: {},
     previewFabrics: [],
     assignments: {},
     drag: null
@@ -168,39 +178,7 @@ Page({
   // 先在 px 坐标中旋转，再分别除以布料宽高，
   // 避免非正方形布料上的旋转产生比例错误。
   texturePlacement(piece) {
-    const l = this.layout;
-
-    if (!l) {
-      return {
-        fabricId: piece.fabricId
-      };
-    }
-
-    const angle = (Number(piece.angle) || 0) * Math.PI / 180;
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-
-    const w = l.pieceWidth - 2 * l.padding;
-    const h = l.pieceHeight - 2 * l.padding;
-
-    return {
-      fabricId: piece.fabricId,
-
-      origin: [
-        ((Number(piece.x) || 0) + l.pieceWidth / 2) / l.width,
-        ((Number(piece.y) || 0) + l.pieceHeight / 2) / l.height
-      ],
-
-      axisX: [
-        w * c / l.width,
-        w * s / l.height
-      ],
-
-      axisY: [
-        -h * s / l.width,
-        h * c / l.height
-      ]
-    };
+    return texturePlacement(piece, this.layout) || { fabricId: piece.fabricId };
   },
 
   refreshFabrics() {
@@ -230,11 +208,12 @@ Page({
     const available = new Set(this.library.map(f => f.id));
     const assignments = {};
     const used = new Set(this.data.items.map(f => f.id));
+    const placedGhosts = [];
 
-    const confirmed = faces.map((ids, index) => {
+    faces.forEach((ids, index) => {
       const record = this.design[index];
 
-      if (!record) return false;
+      if (!record) return;
 
       const pieces = record.pieces.filter(
         p => ids[p.index] && available.has(p.fabricId)
@@ -249,10 +228,29 @@ Page({
         // 每个模型部位都有独立的位置和旋转信息。
         assignments[ids[p.index]] = this.texturePlacement(p);
         used.add(p.fabricId);
+        if (index !== part) {
+          placedGhosts.push({
+            ...p,
+            id: ids[p.index],
+            part: index,
+            label: p.label || String.fromCharCode(65 + p.index)
+          });
+        }
       }
 
-      return record.confirmed && pieces.length === ids.length;
     });
+
+    const validation = validatePlacements(this.design, this.library, this.layout);
+    const placementReady = Boolean(this.layout) && validation.ready;
+    const confirmed = faces.map((ids, index) => {
+      const record = this.design[index];
+      if (!record) return false;
+      if (placementReady && !validation.parts[index].valid) record.confirmed = false;
+      return Boolean(record.confirmed && record.pieces.length === ids.length &&
+        placementReady && validation.parts[index].valid);
+    });
+    const pieceErrors = validation.parts[part].errors;
+
 
     const pieces = this.design[part]?.pieces || [];
 
@@ -260,20 +258,26 @@ Page({
       index,
       label: String.fromCharCode(65 + index),
       name: part === 3 ? armLabels[this.data.language][index] : '',
-      placed: pieces.some(p => p.index === index)
+      placed: pieces.some(p => p.index === index),
+      invalid: Boolean(pieceErrors[index] && pieceErrors[index].invalid)
     }));
 
     this.setData({
       part,
       pieces,
+      placedGhosts,
       slots,
       selected,
       confirmed,
+      pieceErrors,
+      placementReady,
+      canConfirm: placementReady && validation.parts[part].valid && pieces.length === faces[part].length,
 
       parts: this.data.t.parts.map((name, index) => ({
         name,
         index,
-        done: confirmed[index]
+        done: confirmed[index],
+        invalid: Object.values(validation.parts[index].errors).some(error => error.invalid)
       })),
 
       allDone: confirmed.every(Boolean),
@@ -444,9 +448,12 @@ Page({
   },
 
   move(e) {
-    if (e.detail.source !== 'touch') return;
+    if (!e.detail.source) return;
+    if (!Number.isFinite(e.detail.x) || !Number.isFinite(e.detail.y)) return;
 
     const i = Number(e.currentTarget.dataset.index);
+    const current = this.data.pieces[i];
+    if (!current || (current.x === e.detail.x && current.y === e.detail.y)) return;
 
     const pieces = this.data.pieces.map((p, n) => n === i ? {
       ...p,
@@ -464,8 +471,8 @@ Page({
       ...(part === 3 ? { layoutVersion: 2 } : {})
     };
 
-    this.store();
     this.loadPart(part, selected);
+    this.store();
   },
 
   rotate() {
@@ -489,8 +496,14 @@ Page({
   },
 
   confirm() {
+    this.loadPart(this.data.part, this.data.selected);
     if (this.data.pieces.length !== faces[this.data.part].length) {
       this.toast(this.data.t.need);
+      return;
+    }
+
+    if (!this.data.canConfirm) {
+      this.toast(this.data.placementReady ? this.data.t.fixPlacement : this.data.t.checking);
       return;
     }
 
@@ -536,6 +549,7 @@ Page({
   },
 
   guide() {
+    this.loadPart(this.data.part, this.data.selected);
     if (!this.data.allDone) {
       this.toast(this.data.t.all);
       return;
