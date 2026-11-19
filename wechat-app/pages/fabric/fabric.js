@@ -7,6 +7,7 @@ Object.assign(texts.en,{steps:['01 Fabric','02 Patchwork','03 Guide'],heading:'O
 Object.assign(texts.zh,{a4:'A4 估算',photoHint:'将单层布料和完整 A4 纸平铺在一起拍照，随后点选四角测量。',manual:'用尺子手动测量',a4Edit:'重新标定 A4',rangeHint:'外接范围，实际形状以选区为准'});Object.assign(texts.en,{a4:'A4 estimate',photoHint:'Photograph single-layer fabric beside a complete A4 sheet, then mark the corners to measure.',manual:'Measure Manually',a4Edit:'Recalibrate A4',rangeHint:'Bounding size; actual fabric follows the selected outline'});
 Object.assign(texts.zh, {title: '布料库', preview: '选布料，开始设计', photoTitle: '上传布料', photoHint: '选择照片，标记布料并测量尺寸。', camera: '拍摄照片', album: '从相册选择', selected: '已选', selectHint: '选择本次设计要用的布料', deleteHint: '相关裁片将取消分配，已保存的设计稿会保留。'});
 Object.assign(texts.en, {title: 'Fabric Library', preview: 'Design with Selected Fabrics', selected: 'Selected', selectHint: 'Choose fabrics for this design'});
+const { models, draftKey } = require('../../utils/model-catalog');
 Page({
  data:{language:'zh',selectedCount:0,guideVisible:false,guideLanguage:'zh',t:texts.zh,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
  onLoad(options){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.upload==='1'||options.sample==='1'){this._uploadGuideShownThisVisit=true;if(options.sample==='1')this.sample();else this.add()}},
@@ -58,7 +59,7 @@ Page({
  remove(e){this.setData({sheet:'delete',deleteId:e.currentTarget.dataset.id})},
  closeSheet(){this.setData({sheet:''})},
  stop(){},
- deleteConfirmed(){const id=this.data.deleteId;if(!this.persist(this.data.items.filter(i=>i.id!==id)))return;try{const d=wx.getStorageSync('rebear-design')||{};Object.keys(d).forEach(k=>{if(d[k].pieces.some(p=>p.fabricId===id)){d[k].pieces=d[k].pieces.filter(p=>p.fabricId!==id);d[k].confirmed=false}});wx.setStorageSync('rebear-design',d)}catch(e){}this.closeSheet()},
+ deleteConfirmed(){const id=this.data.deleteId;if(!this.persist(this.data.items.filter(i=>i.id!==id)))return;try{models.forEach(model=>{const key=draftKey(model.id),d=wx.getStorageSync(key)||{};Object.values(d).forEach(part=>{if(Array.isArray(part.pieces)&&part.pieces.some(p=>p.fabricId===id)){part.pieces=part.pieces.filter(p=>p.fabricId!==id);part.confirmed=false}});wx.setStorageSync(key,d)})}catch(e){}this.closeSheet()},
  sample(){const id='sample-stripes';if(!this.data.items.some(i=>i.id===id)){this.persist(this.data.items.concat({id,image:'/assets/sample-stripes.png',width:38,height:42,name:this.data.t.sampleName[0],selectionSize:100}))}this.closeSheet()},
- preview(){if(this.data.selectedCount)wx.navigateTo({url:'/pages/design/design',success:page=>page.eventChannel.emit('selectedFabrics',{ids:[...this.selectedIds]})})}
+ preview(){if(this.data.selectedCount)wx.navigateTo({url:'/pages/models/index',success:page=>page.eventChannel.emit('selectedFabrics',{ids:[...this.selectedIds]})})}
 })

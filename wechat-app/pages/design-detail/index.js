@@ -1,6 +1,7 @@
 const copy = require('../../utils/design-copy')
 const { getLanguage } = require('../../utils/i18n')
 const { findDesign, designView, deleteDesigns, displayDate } = require('../../utils/design-records')
+const { getModel } = require('../../utils/model-catalog')
 
 Page({
   data: { t: copy.zh, language: 'zh', record: null, rows: [], materials: [], assignments: {}, deleteIds: [], error: '' },
@@ -12,7 +13,8 @@ Page({
     try {
       const record = findDesign(this.id)
       if (!record) throw new Error('Missing record')
-      this.setData({ t, language, record, date: displayDate(record.updatedAt), ...designView(record.design, record.fabrics, t.parts, t.fabric), error: '' })
+      const model = getModel(record.modelId)
+      this.setData({ t, language, record, modelId: model.id, modelName: model.names[language], date: displayDate(record.updatedAt), ...designView(record.design, record.fabrics, model.parts[language], t.fabric, model.id), error: '' })
     } catch (_) { this.setData({ t, language, record: null, error: t.missing }) }
   },
   edit() { wx.navigateTo({ url: '/pages/design/design?id=' + encodeURIComponent(this.id) }) },

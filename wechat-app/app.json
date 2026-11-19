@@ -2,6 +2,7 @@
   "pages": [
     "pages/index/index",
     "pages/fabric/fabric",
+    "pages/models/index",
     "pages/design/design",
     "pages/guide/guide",
     "pages/measure/measure",

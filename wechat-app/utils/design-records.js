@@ -1,4 +1,4 @@
-const { faces, migrateDesign } = require('./bear-layout')
+const { getModel, migrateModelDesign } = require('./model-catalog')
 const { validatePlacements } = require('./pattern-placement')
 const STORAGE_KEY = 'rebear-saved-designs'
 
@@ -16,9 +16,10 @@ function findDesign(id) {
   return listDesigns().find(record => record.id === id)
 }
 
-function isComplete(design, fabrics) {
+function isComplete(design, fabrics, modelId = 'bear') {
+  const { faces } = getModel(modelId)
   const available = new Set(fabrics.map(fabric => fabric.id))
-  const validation = validatePlacements(design, fabrics)
+  const validation = validatePlacements(design, fabrics, null, modelId)
   return validation.ready && faces.every((ids, part) => {
     const record = design[part]
     if (!record || !record.confirmed || !Array.isArray(record.pieces)) return false
@@ -27,17 +28,21 @@ function isComplete(design, fabrics) {
   })
 }
 
-function saveDesign(name, design, fabrics, id) {
+function saveDesign(name, design, fabrics, id, modelId = 'bear') {
   const records = listDesigns()
   const previous = id && records.find(record => record.id === id)
   if (id && !previous) throw new Error('Design no longer exists')
-  const normalized = migrateDesign(clone(design))
-  if (!isComplete(normalized, fabrics)) throw new Error('Incomplete design')
+  // Existing records without a model ID remain bear designs.
+  const model = getModel(previous ? previous.modelId : modelId)
+  const { faces } = model
+  const normalized = migrateModelDesign(clone(design), model.id)
+  if (!isComplete(normalized, fabrics, model.id)) throw new Error('Incomplete design')
   const used = new Set(faces.flatMap((_, part) => normalized[part].pieces.map(piece => piece.fabricId)))
   const now = Date.now()
   const record = {
     id: previous ? previous.id : 'design-' + now + '-' + Math.random().toString(36).slice(2, 8),
     name: name.trim().slice(0, 40),
+    modelId: model.id,
     createdAt: previous ? previous.createdAt : now,
     updatedAt: now,
     design: normalized,
@@ -55,7 +60,9 @@ function deleteDesigns(ids) {
   wx.setStorageSync(STORAGE_KEY, listDesigns().filter(record => !selected.has(record.id)))
 }
 
-function designView(design, fabrics, partNames, fabricLabel) {
+function designView(design, fabrics, partNames, fabricLabel, modelId = 'bear') {
+  const model = getModel(modelId)
+  const { faces } = model
   const rows = faces.map((ids, part) => {
     const pieces = design[part] && Array.isArray(design[part].pieces) ? design[part].pieces : []
     return {

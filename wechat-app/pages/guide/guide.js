@@ -2,11 +2,11 @@ const copy={zh:{title:'制作指南',heading:'你的小熊已经设计好了！'
 Object.assign(copy.zh,{stepsLabel:['01 准备布料','02 拼布设计','03 制作指南'],heading:'你的小熊，已经设计好啦！',intro:'先看图纸与布料对应关系，再开始下一段陪伴。',list:'裁剪清单 · 小熊的布料档案',finishTitle:'小熊的下一段故事，交给你啦。',stay:'知道了，继续看指南',finish:'完成查看 ✓'});Object.assign(copy.en,{stepsLabel:['01 Fabric','02 Patchwork','03 Guide'],heading:'Your bear is ready for a new story!',intro:'Check the pattern and fabric assignments before the next chapter.',list:'Cutting Checklist · Your Bear’s Fabrics',finishTitle:'Your bear’s next chapter is yours.',stay:'Got It · Keep Reading',finish:'Finish Review ✓'});
 const { getLanguage } = require('../../utils/i18n')
 const saveCopy = require('../../utils/design-copy')
-const { migrateDesign } = require('../../utils/bear-layout')
+const { getModel, draftKey, activeModelId, migrateModelDesign } = require('../../utils/model-catalog')
 const { findDesign, designView, saveDesign, isComplete } = require('../../utils/design-records')
 
 Page({
-  data: {t: copy.zh, saveText: saveCopy.zh, rows: [], expanded: false, finished: false, name: '', saving: false, error: '', complete: false},
+  data: {t: copy.zh, saveText: saveCopy.zh, modelId: 'bear', pattern: '/assets/pattern-demo.png', rows: [], expanded: false, finished: false, name: '', saving: false, error: '', complete: false},
   onLoad(options) {
     const language = getLanguage()
     this.language = language
@@ -18,10 +18,12 @@ Page({
     try {
       const record = this.id ? findDesign(this.id) : null
       if (this.id && !record) throw new Error('Missing design')
-      this.setData({name: record ? record.name : saveText.defaultName})
+      const model = getModel(record ? record.modelId : (options.model || activeModelId()))
+      this.setData({name: record ? record.name : model.id === 'cushion' ? (language === 'en' ? 'My Patchwork Cushion' : '我的拼布坐垫') : saveText.defaultName})
       this.loadDesign({
-        design: record ? record.design : wx.getStorageSync('rebear-design') || {},
-        fabrics: record ? record.fabrics : wx.getStorageSync('rebear-fabrics') || []
+        design: record ? record.design : wx.getStorageSync(draftKey(model.id)) || {},
+        fabrics: record ? record.fabrics : wx.getStorageSync('rebear-fabrics') || [],
+        modelId: model.id
       })
       const channel = this.getOpenerEventChannel()
       if (channel && channel.on) channel.on('design', payload => this.loadDesign(payload))
@@ -30,11 +32,25 @@ Page({
     }
   },
   loadDesign(payload) {
-    this.design = migrateDesign(JSON.parse(JSON.stringify(payload.design)))
+    const model = getModel(payload.modelId)
+    this.modelId = model.id
+    const t = { ...copy[this.language], parts: model.parts[this.language] }
+    const saveText = { ...saveCopy[this.language] }
+    if (model.id === 'cushion') {
+      Object.assign(t, this.language === 'en' ? {
+        heading: 'Your cushion design is ready!', list: 'Cutting Checklist · Your Cushion’s Fabrics',
+        steps: ['01  Match top, bottom and the two side pieces', '02  Join the side pieces, then sew them to the top and bottom; leave a turning opening', '03  Turn, stuff and close the opening']
+      } : { heading: '你的坐垫，已经设计好啦！', list: '裁剪清单 · 坐垫的布料档案',
+        steps: ['01  核对上面、下面与两块侧围的布料和编号', '02  拼接侧围，再与上下面缝合，预留翻口', '03  翻面、填充，再封闭翻口'] })
+      Object.assign(saveText, this.language === 'en' ? { saveTitle: 'Save Cushion Design', incomplete: 'Confirm all cushion parts first.' } : { saveTitle: '保存坐垫方案', incomplete: '请先确认坐垫的全部部位。' })
+    }
+    this.design = migrateModelDesign(JSON.parse(JSON.stringify(payload.design)), model.id)
     this.fabrics = payload.fabrics
     this.setData({
-      rows: designView(this.design, this.fabrics, this.data.t.parts, this.data.saveText.fabric).rows,
-      complete: isComplete(this.design, this.fabrics), error: ''
+      t, saveText, modelId: model.id,
+      pattern: model.id === 'cushion' ? '/assets/cushion-pattern.png' : '/assets/pattern-demo.png',
+      rows: designView(this.design, this.fabrics, t.parts, saveText.fabric, model.id).rows,
+      complete: isComplete(this.design, this.fabrics, model.id), error: ''
     })
   },
   toggle() { this.setData({expanded: !this.data.expanded}) },
@@ -42,7 +58,7 @@ Page({
     const pages = getCurrentPages()
     const previous = pages[pages.length - 2]
     if (previous && previous.route === 'pages/design/design') wx.navigateBack()
-    else wx.navigateTo({url: '/pages/design/design' + (this.id ? '?id=' + encodeURIComponent(this.id) : '')})
+    else wx.navigateTo({url: '/pages/design/design?model=' + this.modelId + (this.id ? '&id=' + encodeURIComponent(this.id) : '')})
   },
   finish() {
     if (!this.data.complete) {
@@ -59,7 +75,7 @@ Page({
     if (!name) { this.setData({error: this.data.saveText.nameRequired}); return }
     this.setData({saving: true, error: ''})
     try {
-      const record = saveDesign(name, this.design, this.fabrics, this.id)
+      const record = saveDesign(name, this.design, this.fabrics, this.id, this.modelId)
       this.id = record.id
       wx.redirectTo({
         url: '/pages/design-saved/index?id=' + encodeURIComponent(record.id),

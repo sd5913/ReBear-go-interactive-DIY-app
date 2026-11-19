@@ -1,0 +1,1 @@
+.cushion-art{position:relative;width:225rpx;height:120rpx;border:2rpx solid #795540;border-radius:50%;background-color:#c7ac8e;background-size:cover;box-shadow:0 14rpx 15rpx #79554022}.cushion-top{position:absolute;left:-2rpx;right:-2rpx;top:-24rpx;height:105rpx;border:2rpx solid #795540;border-radius:50%;background-color:#f4dfb2;background-size:cover;background-position:center}

@@ -1,5 +1,5 @@
 const { inside, overlap, validQuad } = require('./a4-geometry')
-const { faces } = require('./bear-layout')
+const { getModel, pieceLayout } = require('./model-catalog')
 
 // Coordinates match the outer edge of .piece, excluding .piece-wrap padding.
 function texturePlacement(piece, layout) {
@@ -18,7 +18,7 @@ function texturePlacement(piece, layout) {
   }
 }
 
-function pieceOutline(part, placement) {
+function pieceOutline(part, placement, modelId = 'bear') {
   if (!placement || ![placement.origin, placement.axisX, placement.axisY].every(
     axis => Array.isArray(axis) && axis.length === 2 && axis.every(Number.isFinite)
   )) return null
@@ -27,7 +27,8 @@ function pieceOutline(part, placement) {
   const points = []
   // Match border-radius:42%, and the ears' 50% 50% 35% 35% corners.
   for (let corner = 0; corner < 4; corner++) {
-    const radius = part === 2 ? (corner < 2 ? 0.35 : 0.5) : 0.42
+    const radius = modelId === 'cushion' ? (part === 2 ? 0 : 0.5) :
+      (part === 2 ? (corner < 2 ? 0.35 : 0.5) : 0.42)
     const cx = (corner === 0 || corner === 3 ? 1 : -1) * (0.5 - radius)
     const cy = (corner < 2 ? 1 : -1) * (0.5 - radius)
     for (let step = 0; step <= 16; step++) {
@@ -40,6 +41,8 @@ function pieceOutline(part, placement) {
       if (!previous || Math.hypot(point.x - previous.x, point.y - previous.y) > 1e-12) points.push(point)
     }
   }
+  const first = points[0], last = points[points.length - 1]
+  if (points.length > 1 && Math.hypot(first.x - last.x, first.y - last.y) <= 1e-12) points.pop()
   return points
 }
 
@@ -54,7 +57,8 @@ function fabricBoundary(fabric) {
   return validQuad(polygon) ? polygon : []
 }
 
-function validatePlacements(design, fabrics, layout) {
+function validatePlacements(design, fabrics, layout, modelId = 'bear') {
+  const { faces } = getModel(modelId)
   const boundaries = new Map(fabrics.map(fabric => [fabric.id, fabricBoundary(fabric)]))
   const parts = faces.map(() => ({ valid: true, errors: {} }))
   const entries = []
@@ -63,8 +67,8 @@ function validatePlacements(design, fabrics, layout) {
     const pieces = design[part] && design[part].pieces || []
     pieces.forEach(piece => {
       if (!ids[piece.index]) return
-      const placement = layout ? texturePlacement(piece, layout) : piece.placement
-      const outline = pieceOutline(part, placement)
+      const placement = layout ? texturePlacement(piece, pieceLayout(layout, modelId, part)) : piece.placement
+      const outline = pieceOutline(part, placement, modelId)
       const error = { outside: false, overlaps: [], invalid: false }
       parts[part].errors[piece.index] = error
       if (!outline) {

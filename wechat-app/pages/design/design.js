@@ -52,17 +52,19 @@ const copy = {
 const { texturePlacement, validatePlacements } = require('../../utils/pattern-placement');
 
 const { findDesign } = require('../../utils/design-records');
+const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout } = require('../../utils/model-catalog');
 
 const {
-  faces,
-  armLabels,
-  migrateDesign
+  armLabels
 } = require('../../utils/bear-layout');
 
 Page({
   data: {
     t: copy.zh,
     language: 'zh',
+    modelId: 'bear',
+    pieceWidth: 116,
+    pieceHeight: 140,
     items: [],
     part: 0,
     parts: [],
@@ -87,7 +89,6 @@ Page({
 
     try {
       language = wx.getStorageSync('rebear-language') === 'en' ? 'en' : 'zh';
-      design = wx.getStorageSync('rebear-design') || {};
     } catch (e) {}
 
     this.design = {};
@@ -99,16 +100,29 @@ Page({
       wx.reLaunch({url:'/pages/designs/index'});
       return;
     }
-    this.design = migrateDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : design);
+    const model = getModel(this.record ? this.record.modelId : (options.model || activeModelId()));
+    this.modelId = model.id;
+    this.faces = model.faces;
+    this.draftKey = draftKey(model.id);
+    try { design = wx.getStorageSync(this.draftKey) || {}; } catch (_) {}
+    this.design = migrateModelDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : design, model.id);
     this.library = [];
+
+    const t = { ...copy[language], parts: model.parts[language] };
+    t.back = this.record ? (language === 'en' ? 'Back to Design Details' : '返回设计详情') :
+      (language === 'en' ? 'Back to Model Selection' : '返回选择模型');
+    if (model.id === 'cushion') Object.assign(t, language === 'en' ? {
+      title: 'Design Your Cushion', all: 'Confirm all cushion parts first'
+    } : { title: '设计你的坐垫', all: '请先确认坐垫的全部部位' });
 
     this.setData({
       language,
-      t: copy[language]
+      modelId: model.id,
+      t
     });
 
     wx.setNavigationBarTitle({
-      title: copy[language].title
+      title: t.title
     });
 
     const channel = this.getOpenerEventChannel();
@@ -177,8 +191,8 @@ Page({
   // 将裁片位置和旋转转换成布料图片中的采样坐标。
   // 先在 px 坐标中旋转，再分别除以布料宽高，
   // 避免非正方形布料上的旋转产生比例错误。
-  texturePlacement(piece) {
-    return texturePlacement(piece, this.layout) || { fabricId: piece.fabricId };
+  texturePlacement(piece, part = this.data.part) {
+    return texturePlacement(piece, pieceLayout(this.layout, this.modelId, part)) || { fabricId: piece.fabricId };
   },
 
   refreshFabrics() {
@@ -210,6 +224,7 @@ Page({
     const used = new Set(this.data.items.map(f => f.id));
     const placedGhosts = [];
 
+    const faces = this.faces;
     faces.forEach((ids, index) => {
       const record = this.design[index];
 
@@ -226,13 +241,15 @@ Page({
 
       for (const p of pieces) {
         // 每个模型部位都有独立的位置和旋转信息。
-        assignments[ids[p.index]] = this.texturePlacement(p);
+        assignments[ids[p.index]] = this.texturePlacement(p, index);
         used.add(p.fabricId);
         if (index !== part) {
           placedGhosts.push({
             ...p,
             id: ids[p.index],
             part: index,
+            width: getModel(this.modelId).pieceSizes?.[index][0] || 116,
+            height: getModel(this.modelId).pieceSizes?.[index][1] || 140,
             label: p.label || String.fromCharCode(65 + p.index)
           });
         }
@@ -240,7 +257,7 @@ Page({
 
     });
 
-    const validation = validatePlacements(this.design, this.library, this.layout);
+    const validation = validatePlacements(this.design, this.library, this.layout, this.modelId);
     const placementReady = Boolean(this.layout) && validation.ready;
     const confirmed = faces.map((ids, index) => {
       const record = this.design[index];
@@ -257,13 +274,15 @@ Page({
     const slots = faces[part].map((_, index) => ({
       index,
       label: String.fromCharCode(65 + index),
-      name: part === 3 ? armLabels[this.data.language][index] : '',
+      name: this.modelId === 'bear' && part === 3 ? armLabels[this.data.language][index] : '',
       placed: pieces.some(p => p.index === index),
       invalid: Boolean(pieceErrors[index] && pieceErrors[index].invalid)
     }));
 
     this.setData({
       part,
+      pieceWidth: getModel(this.modelId).pieceSizes?.[part][0] || 116,
+      pieceHeight: getModel(this.modelId).pieceSizes?.[part][1] || 140,
       pieces,
       placedGhosts,
       slots,
@@ -349,6 +368,7 @@ Page({
 
   onAssignFabric(e) {
     const { partId, fabricId } = e.detail;
+    const faces = this.faces;
 
     const part = faces.findIndex(ids => ids.includes(partId));
     const fabricIndex = this.data.items.findIndex(f => f.id === fabricId);
@@ -468,7 +488,7 @@ Page({
     this.design[part] = {
       pieces,
       confirmed: false,
-      ...(part === 3 ? { layoutVersion: 2 } : {})
+      ...(this.modelId === 'bear' && part === 3 ? { layoutVersion: 2 } : {})
     };
 
     this.loadPart(part, selected);
@@ -497,7 +517,7 @@ Page({
 
   confirm() {
     this.loadPart(this.data.part, this.data.selected);
-    if (this.data.pieces.length !== faces[this.data.part].length) {
+    if (this.data.pieces.length !== this.faces[this.data.part].length) {
       this.toast(this.data.t.need);
       return;
     }
@@ -528,7 +548,11 @@ Page({
   store() {
     if (this.record) return true;
     try {
-      wx.setStorageSync('rebear-design', this.design);
+      const design = JSON.parse(JSON.stringify(this.design));
+      if (this.layout) this.faces.forEach((_, part) => {
+        (design[part]?.pieces || []).forEach(piece => { piece.placement = this.texturePlacement(piece, part); });
+      });
+      wx.setStorageSync(this.draftKey, design);
       return true;
     } catch (e) {
       this.toast(
@@ -556,12 +580,12 @@ Page({
     }
 
     const design = JSON.parse(JSON.stringify(this.design));
-    Object.values(design).forEach(record => record.pieces.forEach(piece => {
-      piece.placement = this.texturePlacement(piece);
+    this.faces.forEach((_, part) => design[part].pieces.forEach(piece => {
+      piece.placement = this.texturePlacement(piece, part);
     }));
     wx.navigateTo({
-      url: '/pages/guide/guide' + (this.record ? '?id=' + encodeURIComponent(this.record.id) : ''),
-      success: page => page.eventChannel.emit('design', { design, fabrics: this.library })
+      url: '/pages/guide/guide?model=' + this.modelId + (this.record ? '&id=' + encodeURIComponent(this.record.id) : ''),
+      success: page => page.eventChannel.emit('design', { design, fabrics: this.library, modelId: this.modelId })
     });
   },
 

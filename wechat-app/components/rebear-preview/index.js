@@ -1,4 +1,5 @@
 const {createBear}=require('./engine');
+const {getModel}=require('../../utils/model-catalog');
 
 const copy={
   zh:{viewHint:'拖动小熊查看各个角度。',front:'看正面',back:'看背面',hint:'拖动小熊旋转，也可以把下方布料拖到熊身上。',error:'3D 预览暂时无法开启，仍可继续摆放裁片。',texture:'有布料图片无法加载，请返回布料页检查照片。'},
@@ -7,10 +8,11 @@ const copy={
 
 Component({
   properties:{
+    modelId:{type:String,value:'bear',observer(){this.updateCopy();if(this.canvas)this.loadModel();}},
     readOnly:{type:Boolean,value:false},
     fabrics:{type:Array,value:[]},
     assignments:{type:Object,value:{}},
-    language:{type:String,value:'zh',observer(language){this.setData({t:copy[language]||copy.zh});}}
+    language:{type:String,value:'zh',observer(){this.updateCopy();}}
   },
   data:{t:copy.zh,failed:false,textureError:false},
   observers:{'fabrics, assignments':function(){this.syncFabrics();}},
@@ -28,9 +30,8 @@ Component({
           const dpr=Math.min(2,(wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync()).pixelRatio||1);
           this.canvas.width=Math.round(result.width*dpr);
           this.canvas.height=Math.round(result.height*dpr);
-          this.bear=createBear(gl,wx.getFileSystemManager().readFileSync('/assets/rebear.glb'));
-          this.bear.select(null);
-          this.syncFabrics();
+          this.gl=gl;
+          this.loadModel();
         }catch(error){
           console.warn('ReBear preview',error);
           this.setData({failed:true});
@@ -44,6 +45,32 @@ Component({
     }
   },
   methods:{
+    updateCopy(){
+      const t={...(copy[this.data.language]||copy.zh)};
+      if(this.data.modelId==='cushion')Object.assign(t,this.data.language==='en'?{
+        front:'Top',back:'Bottom',viewHint:'Drag the cushion to view it from different angles.',
+        hint:'Drag the cushion to rotate it, or drag a fabric onto it.'
+      }:{front:'看上面',back:'看下面',viewHint:'拖动坐垫查看各个角度。',hint:'拖动坐垫旋转，也可以把下方布料拖到坐垫上。'});
+      this.setData({t});
+    },
+    loadModel(){
+      if(!this.alive||!this.gl)return;
+      if(this.bear)this.bear.dispose();
+      this.bear=null;
+      this.textures=new Map();
+      this.orbit=null;
+      this.setData({failed:false,textureError:false});
+      this.updateCopy();
+      try{
+        const model=getModel(this.data.modelId);
+        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id});
+        this.bear.select(null);
+        this.syncFabrics();
+      }catch(error){
+        console.warn('ReBear model preview',error);
+        this.setData({failed:true});
+      }
+    },
     syncFabrics(){
       if(!this.bear)return;
       const fabrics=new Map(this.data.fabrics.map(f=>[f.id,f.image]));

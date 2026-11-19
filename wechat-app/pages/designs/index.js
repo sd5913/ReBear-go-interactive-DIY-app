@@ -1,6 +1,7 @@
 const copy = require('../../utils/design-copy')
 const { getLanguage } = require('../../utils/i18n')
 const { listDesigns, deleteDesigns, designView, displayDate } = require('../../utils/design-records')
+const { getModel } = require('../../utils/model-catalog')
 
 Page({
   data: { t: copy.zh, language: 'zh', records: [], managing: false, selectedIds: [], deleteIds: [], error: '' },
@@ -12,11 +13,15 @@ Page({
   },
   refresh() {
     try {
-      const records = listDesigns().map(record => ({
-        id: record.id, name: record.name, date: displayDate(record.updatedAt),
-        thumbnails: designView(record.design, record.fabrics, this.data.t.parts, this.data.t.fabric).thumbnails,
-        selected: this.data.selectedIds.includes(record.id)
-      }))
+      const records = listDesigns().map(record => {
+        const model = getModel(record.modelId)
+        return {
+          id: record.id, name: record.name, date: displayDate(record.updatedAt),
+          modelId: model.id, modelName: model.names[this.data.language],
+          thumbnails: designView(record.design, record.fabrics, model.parts[this.data.language], this.data.t.fabric, model.id).thumbnails,
+          selected: this.data.selectedIds.includes(record.id)
+        }
+      })
       const selectedIds = this.data.selectedIds.filter(id => records.some(record => record.id === id))
       this.setData({ records, selectedIds, error: '', managing: records.length > 0 && this.data.managing })
     } catch (_) {

@@ -30,6 +30,8 @@ function saveLanguage(language) {
   try { wx.setStorageSync(storageKey, language) } catch (_) {}
 }
 const i18n = { messages, getLanguage, saveLanguage }
+const { getModel, activeModelId, draftKey } = require('../../utils/model-catalog')
+const { isComplete } = require('../../utils/design-records')
 
 
 Object.assign(i18n.messages.zh,{description:'一块旧布，也能有新的陪伴。',start:'开始制作',prepare:'准备布料',story:'把故事缝进小熊',home:'首页',studio:'制作工坊',guide:'制作指南',badge:'小熊营业中 ♡',aboutTitle:'旧衣新生计划',about:'把舍不得的旧衣，做成可以陪伴你的小熊。先准备布料，再设计拼布，最后查看制作指南。',notReady:'先完成小熊的五个部位设计，就能查看对应清单。'});
@@ -57,7 +59,7 @@ Page({
     i18n.saveLanguage(language)
   },
   about(){wx.showModal({title:this.data.t.aboutTitle,content:this.data.t.about,showCancel:false,confirmText:this.data.t.confirm})},
-  guide(){let d={},f=[];try{d=wx.getStorageSync('rebear-design')||{};f=wx.getStorageSync('rebear-fabrics')||[]}catch(e){};const ready=[2,2,4,2,2].every((n,i)=>d[i]&&d[i].confirmed&&d[i].pieces.length===n&&d[i].pieces.every(p=>f.some(x=>x.id===p.fabricId)));if(ready)wx.navigateTo({url:'/pages/guide/guide'});else wx.showToast({title:this.data.t.notReady,icon:'none'})},
+  guide(){const model=getModel(activeModelId());let d={},f=[];try{d=wx.getStorageSync(draftKey(model.id))||{};f=wx.getStorageSync('rebear-fabrics')||[]}catch(e){};if(isComplete(d,f,model.id))wx.navigateTo({url:'/pages/guide/guide?model='+model.id});else wx.showToast({title:this.data.language==='en'?'Confirm all model parts first.':'请先完成并确认模型的全部部位。',icon:'none'})},
   startMaking() { this.setData({ sheet: true }) },
   closeSheet() { this.setData({ sheet: false }) },
   stop() {},

@@ -1,2 +1,4 @@
 @import '../design-ui.wxss';
+@import '../../components/cushion-art.wxss';
+.saved-art .cushion-art{margin:40rpx auto 55rpx;transform:scale(1.4)}
 .saved-message{background:#4d3429;color:#fffbf2;border-radius:18rpx;text-align:center;padding:22rpx;margin-bottom:28rpx;font-size:26rpx}.saved-art{padding:60rpx 30rpx 30rpx;text-align:center;margin-top:30rpx;background:#f4dfb2}.saved-art rb-bear{margin:0 auto 40rpx;transform:scale(1.1)}.scheme-name{font-size:29rpx;margin-top:22rpx;overflow-wrap:anywhere}

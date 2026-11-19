@@ -1,4 +1,5 @@
 const G=require('../../utils/a4-geometry');
+const { models, draftKey } = require('../../utils/model-catalog');
 const copy={zh:{title:'A4 测量试用',paperTitle:'先点出 A4 纸的四个角',clothTitle:'再点出布料的四个顶点',resultTitle:'确认估算结果',clothHint:'同样按顺时针点选四个可用顶点，不要包含缺口、纽扣或破损。',firstEdge:'纸张第 1 → 2 点的边长',short:'短边 21 cm',long:'长边 29.7 cm',undo:'撤销一点',reset:'重新点选',paperNext:'确认 A4，选择布料 →',clothNext:'计算估算尺寸 →',back:'返回上一步',save:'确认并保存布料',replace:'重新选照片',loading:'正在准备照片',working:'正在校正照片',saving:'正在保存',failed:'处理失败，请重试或换一张照片。',points:'请先按顺序点满四个角。',quad:'四个点需要围成不交叉的凸四边形，请调整顺序或位置。',small:'A4 在照片中太小，请靠近拍摄或重新选点。',overlap:'A4 与布料选区不能重叠，请确认选点。',range:'尺寸异常，请检查 A4 四角及短边、长边设置。',horizon:'拍摄角度或选点异常，请尽量从正上方重拍。',file:'原照片已失效，请重新选择。',flat:'布料与完整 A4 纸需放在同一平面，布料单层铺平；这次是估算试用，保存前请用尺子抽查。',bbox:'外接范围（不是四边形的边长）',area:'选区面积',edges:'四边长度（按 1 → 2 → 3 → 4 → 1）',unit:'cm',saved:'A4 估算',clothStep:'布料',resultStep:'结果',trial:'尺寸为估算值，可返回调整角点。透明部分是布料外区域。',retry:'调整布料四角',cancel:'取消测量',storage:'保存失败，原布料未被替换。',demoLimit:'当前拼布页仍是交互示意，尚未接入真实比例与越界检查。'},en:{title:'A4 Measurement Trial',paperTitle:'Mark the four A4 corners',clothTitle:'Mark four fabric corners',resultTitle:'Check the estimated result',paperHint:'Start at the paper’s top-left corner and tap clockwise. Use the real paper edges. Drag dots to refine.',clothHint:'Tap four usable fabric corners clockwise. Exclude notches, buttons and damaged areas.',firstEdge:'Paper edge from point 1 to point 2',short:'Short edge · 21 cm',long:'Long edge · 29.7 cm',undo:'Undo Point',reset:'Reset Points',paperNext:'Confirm A4 · Select Fabric →',clothNext:'Estimate Dimensions →',back:'Back a Step',save:'Confirm & Save Fabric',replace:'Choose Another Photo',loading:'Preparing photo',working:'Rectifying photo',saving:'Saving',failed:'Could not process the photo. Try again or choose another.',points:'Mark all four corners in order first.',quad:'Use four ordered corners forming a convex, non-crossing shape.',small:'The A4 sheet is too small. Move closer or refine the corners.',overlap:'The paper and fabric selections must not overlap.',range:'Unexpected dimensions. Check paper corners and the short/long edge setting.',horizon:'Invalid perspective or points. Retake the photo from above.',file:'The original photo is unavailable. Choose it again.',flat:'Lay single-layer fabric and a complete A4 sheet on the same flat surface. This is an estimate: spot-check with a ruler.',bbox:'Bounding size (not the four edge lengths)',area:'Selected area',edges:'Edge lengths (1 → 2 → 3 → 4 → 1)',unit:'cm',saved:'A4 estimate',clothStep:'Fabric',resultStep:'Result',trial:'Estimated dimensions. Go back to adjust corners. Transparent areas lie outside the fabric.',retry:'Adjust Fabric Corners',cancel:'Cancel Measurement',storage:'Save failed. Your previous fabric was kept.',demoLimit:'The patchwork page remains an interaction demo, without physical-scale or boundary checks.'}};
 
 Object.assign(copy.zh,{paperTitle:'调整选框，对齐 A4 纸',clothTitle:'调整选框，圈住可用布料',clothHint:'将初始框移到布料上，拖动顶点贴合可用边缘；避开缺口、纽扣和破损。',undo:'撤销调整',reset:'恢复初始框',shrink:'缩小选框',grow:'放大选框',gestures:'拖框移动 · 双指缩放 · 拖顶点微调',points:'请把选框调整到物体的四个真实顶点。'});
@@ -58,7 +59,50 @@ Page({
  back(){if(this.data.busy)return;const phase=Math.max(0,this.data.phase-1);this.gesture=null;this.lens=null;this.setData({phase,error:'',hasUndo:!!this.history[phase].length},()=>this.draw())},
  async compute(){this.setData({busy:true,error:''});try{this.measurement=G.measure(this.paper,this.cloth,this.data.longEdge);const canvas=await this.canvas('processCanvas');this.processingCanvas=canvas;const ratio=Math.min(1,1400/Math.max(this.info.width,this.info.height));const sw=Math.max(1,Math.round(this.info.width*ratio)),sh=Math.max(1,Math.round(this.info.height*ratio));canvas.width=sw;canvas.height=sh;let ctx=canvas.getContext('2d');const img=await this.loadImage(canvas,this.info.path);ctx.drawImage(img,0,0,sw,sh);const source=ctx.getImageData(0,0,sw,sh).data;const result=G.rasterRows(source,sw,sh,this.measurement,900,null,0,0);for(let start=0;start<result.height;start+=32){if(this.closed)return;G.rasterRows(source,sw,sh,this.measurement,900,result.data,start,start+32);await new Promise(resolve=>setTimeout(resolve,0))}canvas.width=result.width;canvas.height=result.height;ctx=canvas.getContext('2d');const image=ctx.createImageData(result.width,result.height);image.data.set(result.data);ctx.putImageData(image,0,0);const temp=await this.call('canvasToTempFilePath',{canvas,destWidth:result.width,destHeight:result.height,fileType:'png'});const m=this.measurement;this.previewTemp=temp.tempFilePath;this.setData({phase:2,busy:false,preview:this.previewTemp,result:{width:m.width.toFixed(1),height:m.height.toFixed(1),area:m.area.toFixed(1),edges:m.edges.map(v=>v.toFixed(1)).join(' / ')}})}catch(e){this.fail(e.message)}},
  fail(key){if(this.closed)return;this.setData({busy:false,error:this.data.t[key]||this.data.t.failed})},
- async save(){if(this.data.busy||!this.measurement||!this.previewTemp)return;this.setData({busy:true,error:''});const created=[];try{const image=await this.call('saveFile',{tempFilePath:this.previewTemp});created.push(image.savedFilePath);let original=this.path;if(!this.old||original!==(this.old.original||this.old.image)){const file=await this.call('saveFile',{tempFilePath:this.path});original=file.savedFilePath;created.push(original)}const m=this.measurement;const item={...(this.old||{}),id:this.editId||('fabric-'+Date.now()),image:image.savedFilePath,original,width:Number(m.width.toFixed(2)),height:Number(m.height.toFixed(2)),measurement:{version:1,method:'a4-four-corners',paper:this.paper.map(p=>({...p})),cloth:this.cloth.map(p=>({...p})),longEdge:this.data.longEdge,polygonCm:m.polygonCm,edgesCm:m.edges,areaCm2:m.area,boundsCm:{width:m.width,height:m.height},estimated:true},selectionSize:100};delete item.region;const items=wx.getStorageSync('rebear-fabrics')||[];const updated=items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):items.concat(item);const designBefore=wx.getStorageSync('rebear-design')||{};let designChanged=false;if(this.editId){const design=JSON.parse(JSON.stringify(designBefore));Object.keys(design).forEach(k=>{if(Array.isArray(design[k].pieces)&&design[k].pieces.some(p=>p.fabricId===item.id)){design[k].pieces=design[k].pieces.filter(p=>p.fabricId!==item.id);design[k].confirmed=false;designChanged=true}});if(designChanged)wx.setStorageSync('rebear-design',design)}try{wx.setStorageSync('rebear-fabrics',updated)}catch(e){if(designChanged)wx.setStorageSync('rebear-design',designBefore);throw e}this.saved=true;try{const channel=this.getOpenerEventChannel();if(channel&&channel.emit)channel.emit('saved',{id:item.id})}catch(e){}this.setData({busy:false});this.exit()}catch(e){if(!this.saved)created.forEach(filePath=>wx.removeSavedFile({filePath}));this.fail('storage')}},
+ async save(){
+  if(this.data.busy||!this.measurement||!this.previewTemp)return;
+  this.setData({busy:true,error:''});
+  const created=[];
+  try{
+   const image=await this.call('saveFile',{tempFilePath:this.previewTemp});
+   created.push(image.savedFilePath);
+   let original=this.path;
+   if(!this.old||original!==(this.old.original||this.old.image)){
+    const file=await this.call('saveFile',{tempFilePath:this.path});
+    original=file.savedFilePath;created.push(original);
+   }
+   const m=this.measurement;
+   const item={...(this.old||{}),id:this.editId||('fabric-'+Date.now()),image:image.savedFilePath,original,width:Number(m.width.toFixed(2)),height:Number(m.height.toFixed(2)),measurement:{version:1,method:'a4-four-corners',paper:this.paper.map(p=>({...p})),cloth:this.cloth.map(p=>({...p})),longEdge:this.data.longEdge,polygonCm:m.polygonCm,edgesCm:m.edges,areaCm2:m.area,boundsCm:{width:m.width,height:m.height},estimated:true},selectionSize:100};
+   delete item.region;
+   const items=wx.getStorageSync('rebear-fabrics')||[];
+   const updated=items.some(x=>x.id===item.id)?items.map(x=>x.id===item.id?item:x):items.concat(item);
+   const drafts=[];
+   if(this.editId)models.forEach(model=>{
+    const key=draftKey(model.id),before=wx.getStorageSync(key)||{};
+    const design=JSON.parse(JSON.stringify(before));
+    let changed=false;
+    Object.values(design).forEach(part=>{
+     if(Array.isArray(part.pieces)&&part.pieces.some(p=>p.fabricId===item.id)){
+      part.pieces=part.pieces.filter(p=>p.fabricId!==item.id);part.confirmed=false;changed=true;
+     }
+    });
+    if(changed)drafts.push({key,before,design});
+   });
+   try{
+    drafts.forEach(draft=>wx.setStorageSync(draft.key,draft.design));
+    wx.setStorageSync('rebear-fabrics',updated);
+   }catch(error){
+    drafts.forEach(draft=>{try{wx.setStorageSync(draft.key,draft.before)}catch(_){}});
+    throw error;
+   }
+   this.saved=true;
+   try{const channel=this.getOpenerEventChannel();if(channel&&channel.emit)channel.emit('saved',{id:item.id})}catch(e){}
+   this.setData({busy:false});this.exit();
+  }catch(e){
+   if(!this.saved)created.forEach(filePath=>wx.removeSavedFile({filePath}));
+   this.fail('storage');
+  }
+ },
  replace(){if(this.data.busy)return;wx.chooseMedia({count:1,mediaType:['image'],sourceType:['album','camera'],success:r=>{this.storedMeasurement=null;this.prepare(r.tempFiles[0].tempFilePath)}})},
  exit(){if(this.data.busy)return;if(this.saved&&this.returnTo==='fabric'){wx.redirectTo({url:'/pages/fabric/fabric'});return}const fallback=()=>wx.reLaunch({url:'/pages/fabric/fabric'});if(getCurrentPages().length>1)wx.navigateBack({fail:fallback});else fallback()}
 })

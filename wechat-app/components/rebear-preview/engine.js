@@ -147,6 +147,104 @@ function readBear(arrayBuffer) {
   });
 }
 
+// The supplied cushion has indexed meshes named top / bottom / loop.
+// Its loop contains two disconnected UV panels, giving four editable pieces.
+function readCushion(arrayBuffer) {
+  const header = new DataView(arrayBuffer);
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2) {
+    throw new Error('Invalid cushion GLB');
+  }
+  const jsonLength = header.getUint32(12, true);
+  const encoded = new Uint8Array(arrayBuffer, 20, jsonLength);
+  const doc = JSON.parse(decodeURIComponent(Array.from(encoded, b => '%' + b.toString(16).padStart(2, '0')).join('')));
+  const binOffset = 28 + jsonLength;
+
+  function attribute(index) {
+    const accessor = doc.accessors[index];
+    const view = doc.bufferViews[accessor.bufferView];
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[accessor.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[accessor.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[accessor.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported cushion attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (accessor.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(accessor.count * width);
+    for (let i = 0; i < accessor.count; i++) {
+      for (let axis = 0; axis < width; axis++) values[i * width + axis] = header[read](offset + i * stride + axis * bytes, true);
+    }
+    return values;
+  }
+
+  const definitions = {
+    top: { ids: ['cushion_top'], group: 0, label: '上面' },
+    bottom: { ids: ['cushion_bottom'], group: 1, label: '下面' },
+    loop: { ids: ['cushion_side_a', 'cushion_side_b'], group: 2, label: '侧围' }
+  };
+  const parts = [];
+  for (const node of doc.nodes) {
+    const definition = definitions[node.name];
+    if (!definition) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) throw new Error('Cushion must use triangles');
+      const pos = attribute(primitive.attributes.POSITION);
+      const normal = attribute(primitive.attributes.NORMAL);
+      const uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined ? Array.from({ length: pos.length / 3 }, (_, i) => i) : Array.from(attribute(primitive.indices));
+      const parent = Array.from({ length: pos.length / 3 }, (_, i) => i);
+      function root(i) {
+        while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+        return i;
+      }
+      for (let i = 0; i < indices.length; i += 3) {
+        const a = root(indices[i]);
+        parent[root(indices[i + 1])] = a;
+        parent[root(indices[i + 2])] = a;
+      }
+      const components = new Map();
+      for (let i = 0; i < indices.length; i += 3) {
+        const key = root(indices[i]);
+        if (!components.has(key)) components.set(key, []);
+        components.get(key).push(...indices.slice(i, i + 3));
+      }
+      const panels = [...components.values()].sort((a, b) => Math.min(...a) - Math.min(...b));
+      if (panels.length !== definition.ids.length) throw new Error('Unexpected cushion panels');
+      panels.forEach((panel, index) => {
+        const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+        panel.forEach(i => {
+          bounds[0] = Math.min(bounds[0], uv[i * 2]);
+          bounds[1] = Math.min(bounds[1], uv[i * 2 + 1]);
+          bounds[2] = Math.max(bounds[2], uv[i * 2]);
+          bounds[3] = Math.max(bounds[3], uv[i * 2 + 1]);
+        });
+        parts.push({
+          id: definition.ids[index], group: definition.group, label: definition.label,
+          base: [.83, .76, .65],
+          pos: new Float32Array(panel.flatMap(i => Array.from(pos.slice(i * 3, i * 3 + 3)))),
+          normal: new Float32Array(panel.flatMap(i => Array.from(normal.slice(i * 3, i * 3 + 3)))),
+          uv: new Float32Array(panel.flatMap(i => {
+            const u = (uv[i * 2] - bounds[0]) / (bounds[2] - bounds[0]);
+            const v = (uv[i * 2 + 1] - bounds[1]) / (bounds[3] - bounds[1]);
+            // Side panels are vertical in the source UV, horizontal in the tray.
+            return node.name === 'loop' ? [v, 1 - u] : [u, v];
+          }))
+        });
+      });
+    }
+  }
+  if (parts.length !== 4) throw new Error('Incomplete cushion model');
+  const minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    minimum[i % 3] = Math.min(minimum[i % 3], value);
+    maximum[i % 3] = Math.max(maximum[i % 3], value);
+  }));
+  const center = minimum.map((value, axis) => (value + maximum[axis]) / 2);
+  const scale = 1.18 / Math.max(...maximum.map((value, axis) => value - minimum[axis]));
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    part.pos[i] = (value - center[i % 3]) * scale + (i % 3 === 1 ? .91 : 0);
+  }));
+  return parts;
+}
+
 const fabrics = [
   {
     id: 'check',
@@ -190,8 +288,9 @@ const fabrics = [
   }
 ];
 
-function createBear(gl, buffer) {
-  const parts = readBear(buffer);
+function createBear(gl, buffer, options = {}) {
+  const cushion = options.modelId === 'cushion';
+  const parts = cushion ? readCushion(buffer) : readBear(buffer);
   const program = gl.createProgram();
 
   for (const [type, source] of [
@@ -245,9 +344,9 @@ function createBear(gl, buffer) {
   const assignments = new Map();
   const adjustable = parts.filter(p => !p.fixed);
 
-  let selected = 'head_front';
+  let selected = cushion ? 'cushion_top' : 'head_front';
   let yaw = 0;
-  let pitch = 0;
+  let pitch = cushion ? .65 : 0;
   let preview = null;
 
   for (const p of parts) {
@@ -572,17 +671,18 @@ function createBear(gl, buffer) {
 
     rotate(dx, dy) {
       yaw += dx * .012;
+      const limit = cushion ? Math.PI : .85;
       pitch = Math.max(
-        -.85,
-        Math.min(.85, pitch + dy * .01)
+        -limit,
+        Math.min(limit, pitch + dy * .01)
       );
 
       render();
     },
 
     show(side) {
-      yaw = side === 'back' ? Math.PI : 0;
-      pitch = 0;
+      yaw = !cushion && side === 'back' ? Math.PI : 0;
+      pitch = cushion ? (side === 'back' ? -Math.PI / 2 : Math.PI / 2) : 0;
       render();
     },
 
@@ -681,12 +781,14 @@ if (typeof module === 'object') {
   module.exports = {
     createBear,
     readBear,
+    readCushion,
     fabrics
   };
 } else {
   globalThis.Rebear = {
     createBear,
     readBear,
+    readCushion,
     fabrics
   };
 }

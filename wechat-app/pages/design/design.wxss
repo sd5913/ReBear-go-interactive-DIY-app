@@ -4,3 +4,4 @@
 
 .piece-wrap.piece-invalid{outline:3rpx dashed #c7352b;outline-offset:-3rpx}.piece-invalid .piece{border-color:#c7352b;color:#a5231b;background:rgba(216,55,43,.16)}.tab.invalid-tab{border-color:#c7352b;color:#b72c22}.tab.active.invalid-tab{background:#a73128;color:#fff}.slot.slot-invalid{border-color:#c7352b;color:#b72c22;background:#fff0ed}
 .placed-piece-ghost{position:absolute;left:0;top:0;z-index:1;pointer-events:none;opacity:.65}.placed-piece-ghost .piece{border:2rpx dashed #61797d;background:rgba(97,121,125,.14);color:#405b60}.current-piece{z-index:2}
+.model-cushion .part-0,.model-cushion .part-1{border-radius:50%}.model-cushion .part-2{border-radius:0}
