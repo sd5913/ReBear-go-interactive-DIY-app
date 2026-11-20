@@ -8,12 +8,12 @@ module.exports = {
     confirmDelete: '确认删除方案', cancel: '取消', saveError: '保存失败，请检查本地存储后重试。',
     missing: '此方案已删除或无法读取。', back: '返回我的设计', editScheme: '编辑此方案',
     guide: '查看制作指南', usedFabrics: '使用的布料', fabric: '布料', fabricUnit: ' 块布料',
-    parts: ['头部', '身体', '耳朵', '手臂', '腿部'], assignments: '部位分配', pieceUnit: ' 片',
+    parts: ['头部', '身体', '耳朵', '手臂'], assignments: '部位分配', pieceUnit: ' 片',
     savedOn: '保存于 ', removeScheme: '删除此方案', saved: '设计已保存',
     savedHeading: '小熊方案，留下来了。', savedHint: '可在底部「设计稿」中找到本次创作。',
     viewScheme: '查看此方案', home: '回首页', name: '方案名称', saveTitle: '保存小熊方案',
     nameHint: '为这次创作取个名字。', defaultName: '我的拼布小熊', save: '保存到我的设计',
-    guideFinish: '完成并保存设计', cancelSave: '取消保存', nameRequired: '请为方案填写名称。', incomplete: '请先确认全部五个部位。'
+    guideFinish: '完成并保存设计', cancelSave: '取消保存', nameRequired: '请为方案填写名称。', incomplete: '请先确认全部四个部位。'
   },
   en: {
     title: 'My Designs', detail: 'Design Details', savedTitle: 'Design Saved', edit: 'Edit', done: 'Done',
@@ -24,11 +24,11 @@ module.exports = {
     confirmDelete: 'Delete Designs', cancel: 'Cancel', saveError: 'Could not save. Check local storage and try again.',
     missing: 'This design was deleted or could not be read.', back: 'Back to My Designs', editScheme: 'Edit This Design',
     guide: 'Making Guide', usedFabrics: 'Fabrics Used', fabric: 'Fabric', fabricUnit: ' fabrics',
-    parts: ['Head', 'Body', 'Ears', 'Arms', 'Legs'], assignments: 'Part Assignments', pieceUnit: ' pieces',
+    parts: ['Head', 'Body', 'Ears', 'Arms'], assignments: 'Part Assignments', pieceUnit: ' pieces',
     savedOn: 'Saved on ', removeScheme: 'Delete This Design', saved: 'Design saved',
     savedHeading: 'Your bear design is saved.', savedHint: 'Find this creation in the Designs tab.',
     viewScheme: 'View This Design', home: 'Home', name: 'Design name', saveTitle: 'Save Bear Design',
     nameHint: 'Give this creation a name.', defaultName: 'My Patchwork Bear', save: 'Save to My Designs',
-    guideFinish: 'Finish & Save Design', cancelSave: 'Cancel', nameRequired: 'Enter a design name.', incomplete: 'Confirm all five parts first.'
+    guideFinish: 'Finish & Save Design', cancelSave: 'Cancel', nameRequired: 'Enter a design name.', incomplete: 'Confirm all four parts first.'
   }
 }

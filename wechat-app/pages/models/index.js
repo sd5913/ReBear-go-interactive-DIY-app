@@ -29,7 +29,7 @@ Page({
     const model = getModel(this.data.selectedId)
     let fabrics = []
     try { fabrics = wx.getStorageSync('rebear-fabrics') || [] } catch (_) {}
-    const ids = (this.selectedIds || fabrics.map(fabric => fabric.id))
+    const ids = (this.selectedIds || [])
       .filter(id => fabrics.some(fabric => fabric.id === id))
     if (!ids.length) { wx.showToast({ title: this.data.t.missing, icon: 'none' }); return }
     this.setData({ opening: true })

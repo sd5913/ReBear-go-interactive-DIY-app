@@ -4,11 +4,23 @@ const models = [
   {
     id: 'bear',
     names: { zh: '小熊', en: 'Bear' },
-    asset: '/assets/rebear.glb',
+    asset: '/assets/bear-material/bear.glb',
     thumbnail: '/assets/bear-model.png',
     difficulty: 4,
     faces,
-    parts: { zh: ['头部', '身体', '耳朵', '手臂', '腿部'], en: ['Head', 'Body', 'Ears', 'Arms', 'Legs'] }
+    // Full-body UV atlas is an equal-scale reference. Its normalized bounds
+    // define the relative cut dimensions for every bear piece.
+    uvAtlas: '/assets/bear-material/temples.png',
+    uvAtlasSize: [1024, 1024],
+    // Relative bounds read from temples.png. Head is the reference piece.
+    // Ear/arm rows contain left and right pieces with separate dimensions.
+    pieceScales: [
+      [[1, 1]],
+      [[1.12, 1.86]],
+      [[0.44, 0.72], [0.44, 0.72]],
+      [[0.72, 1.32], [0.72, 1.32]]
+    ],
+    parts: { zh: ['头部', '身体', '耳朵', '手臂'], en: ['Head', 'Body', 'Ears', 'Arms'] }
   },
   {
     id: 'cushion',
@@ -42,7 +54,12 @@ function migrateModelDesign(design, modelId) {
 // Preserve the bear's existing piece sizes. Cushion pieces use their own display shapes.
 function pieceLayout(layout, modelId, part) {
   const sizes = getModel(modelId).pieceSizes
-  if (!layout || !sizes) return layout
+  if (!layout) return layout
+  const model = getModel(modelId)
+  if (model.id === 'bear' && model.pieceScales) return layout
+    ? { ...layout, pieceScales: model.pieceScales[part] }
+    : layout
+  if (!sizes) return layout
   const unit = layout.padding / 10
   return { ...layout, pieceWidth: sizes[part][0] * unit, pieceHeight: sizes[part][1] * unit }
 }

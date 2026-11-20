@@ -63,6 +63,6 @@ Page({
       wx.showToast({ title: this.data.t.saveError, icon: 'none' })
     }
   },
-  upload() { wx.reLaunch({ url: '/pages/fabric/fabric?upload=1' }) },
+  upload() { wx.reLaunch({ url: '/pages/fabric/fabric' }) },
   stop() {}
 })

@@ -7,23 +7,36 @@ function texturePlacement(piece, layout) {
   const angle = (Number(piece.angle) || 0) * Math.PI / 180
   const cos = Math.cos(angle)
   const sin = Math.sin(angle)
-  const width = layout.pieceWidth - 2 * layout.padding
-  const height = layout.pieceHeight - 2 * layout.padding
+  const scale = layout.pieceScales && layout.pieceScales[piece.index] || [1, 1]
+  const pieceWidth = layout.pieceWidth * scale[0]
+  const pieceHeight = layout.pieceHeight * scale[1]
+  const width = pieceWidth - 2 * layout.padding * scale[0]
+  const height = pieceHeight - 2 * layout.padding * scale[1]
   return {
     fabricId: piece.fabricId,
-    origin: [((Number(piece.x) || 0) + layout.pieceWidth / 2) / layout.width,
-      ((Number(piece.y) || 0) + layout.pieceHeight / 2) / layout.height],
+    origin: [((Number(piece.x) || 0) + pieceWidth / 2) / layout.width,
+      ((Number(piece.y) || 0) + pieceHeight / 2) / layout.height],
     axisX: [width * cos / layout.width, width * sin / layout.height],
     axisY: [-height * sin / layout.width, height * cos / layout.height]
   }
 }
 
-function pieceOutline(part, placement, modelId = 'bear') {
+function pieceOutline(part, placement, modelId = 'bear', slot = 0) {
   if (!placement || ![placement.origin, placement.axisX, placement.axisY].every(
     axis => Array.isArray(axis) && axis.length === 2 && axis.every(Number.isFinite)
   )) return null
   const { origin, axisX, axisY } = placement
   if (Math.abs(axisX[0] * axisY[1] - axisX[1] * axisY[0]) < 1e-12) return null
+  if (modelId === 'bear') {
+    const shapes = [
+      [[.02,.49],[.08,.3],[.3,.13],[.5,.02],[.7,.13],[.93,.3],[.98,.5],[.88,.73],[.7,.9],[.5,.98],[.3,.9],[.1,.73]],
+      [[.03,.08],[.28,.12],[.5,.18],[.72,.12],[.97,.08],[.94,.42],[.88,.65],[.95,.9],[.7,.98],[.55,.86],[.5,.78],[.45,.86],[.3,.98],[.05,.9],[.12,.65],[.06,.42]],
+      [[.08,.02],[.4,.16],[.52,.4],[.98,.48],[.9,.9],[.58,.98],[.45,.73],[.12,.58]],
+      [[.18,.02],[.56,.12],[.84,.32],[.98,.7],[.82,.98],[.62,.83],[.48,.62],[.3,.58],[.08,.42]]
+    ];
+    const polygon = shapes[part] || shapes[0];
+    return polygon.map(([x,y]) => ({x:placement.origin[0]+placement.axisX[0]*(x-.5)+placement.axisY[0]*(y-.5),y:placement.origin[1]+placement.axisX[1]*(x-.5)+placement.axisY[1]*(y-.5)}));
+  }
   const points = []
   // Match border-radius:42%, and the ears' 50% 50% 35% 35% corners.
   for (let corner = 0; corner < 4; corner++) {
@@ -68,7 +81,7 @@ function validatePlacements(design, fabrics, layout, modelId = 'bear') {
     pieces.forEach(piece => {
       if (!ids[piece.index]) return
       const placement = layout ? texturePlacement(piece, pieceLayout(layout, modelId, part)) : piece.placement
-      const outline = pieceOutline(part, placement, modelId)
+      const outline = pieceOutline(part, placement, modelId, piece.index)
       const error = { outside: false, overlaps: [], invalid: false }
       parts[part].errors[piece.index] = error
       if (!outline) {

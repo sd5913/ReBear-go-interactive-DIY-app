@@ -2,7 +2,7 @@ const copy = {
   zh: {
     title: '设计你的小熊',
     heading: '把裁片摆到布料上',
-    parts: ['头部', '身体', '耳朵', '手臂', '腿部'],
+    parts: ['头部', '身体', '耳朵', '手臂'],
     piece: '裁片',
     placed: '已摆放',
     hint: '先选布料，再点裁片摆放。拖动裁片可调整位置。',
@@ -13,7 +13,7 @@ const copy = {
     confirm: '确认当前部位',
     done: '查看图纸与清单',
     need: '请先放入全部裁片',
-    all: '请先确认全部五个部位',
+    all: '请先确认全部四个部位',
     select: '请先选择一块裁片',
     saved: '当前部位已保存',
     missing: '布料已删除，请重新摆放',
@@ -26,7 +26,7 @@ const copy = {
   en: {
     title: 'Design Your Bear',
     heading: 'Place pieces on your fabric',
-    parts: ['Head', 'Body', 'Ears', 'Arms', 'Legs'],
+    parts: ['Head', 'Body', 'Ears', 'Arms'],
     piece: 'pieces',
     placed: 'placed',
     hint: 'Choose a fabric, then tap a piece to place it. Drag the piece to position it.',
@@ -37,7 +37,7 @@ const copy = {
     confirm: 'Confirm This Part',
     done: 'View Pattern & Checklist',
     need: 'Place all pieces first',
-    all: 'Confirm all five parts first',
+    all: 'Confirm all four parts first',
     select: 'Select a piece first',
     saved: 'Part saved',
     missing: 'Fabric was deleted. Place these pieces again.',
@@ -51,7 +51,7 @@ const copy = {
 
 const { texturePlacement, validatePlacements } = require('../../utils/pattern-placement');
 
-const { findDesign } = require('../../utils/design-records');
+const { findDesign, saveDesign } = require('../../utils/design-records');
 const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout } = require('../../utils/model-catalog');
 
 const {
@@ -65,6 +65,7 @@ Page({
     modelId: 'bear',
     pieceWidth: 116,
     pieceHeight: 140,
+    pieceMask: '',
     items: [],
     part: 0,
     parts: [],
@@ -81,6 +82,7 @@ Page({
     previewFabrics: [],
     assignments: {},
     drag: null
+    ,exitDialog:false, saveDialog:false, saveName:''
   },
 
   onLoad(options) {
@@ -92,6 +94,7 @@ Page({
     } catch (e) {}
 
     this.design = {};
+    this.hasChanges=false;
     this.library = [];
     try { this.record = options.id ? findDesign(options.id) : null; }
     catch (_) { this.record = null; }
@@ -104,8 +107,9 @@ Page({
     this.modelId = model.id;
     this.faces = model.faces;
     this.draftKey = draftKey(model.id);
-    try { design = wx.getStorageSync(this.draftKey) || {}; } catch (_) {}
-    this.design = migrateModelDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : design, model.id);
+    // A fresh design session always starts empty; only an explicit saved-design edit loads data.
+    try { wx.removeStorageSync(this.draftKey); } catch (_) {}
+    this.design = migrateModelDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : {}, model.id);
     this.library = [];
 
     const t = { ...copy[language], parts: model.parts[language] };
@@ -124,6 +128,9 @@ Page({
     wx.setNavigationBarTitle({
       title: t.title
     });
+    if (!this.record && wx.enableAlertBeforeUnload) {
+      wx.enableAlertBeforeUnload({message: language === 'en' ? 'You have not saved this design. Exit anyway?' : '您还没有保存，确定退出吗？'});
+    }
 
     const channel = this.getOpenerEventChannel();
     if (channel && typeof channel.on === 'function') {
@@ -149,6 +156,10 @@ Page({
       this.selectedIds = new Set(this.record.fabrics.map(fabric => fabric.id));
     }
     this.refreshFabrics();
+  },
+
+  onUnload() {
+    if (!this.record) { try { wx.removeStorageSync(this.draftKey); } catch (_) {} }
   },
 
   onReady() {
@@ -250,6 +261,9 @@ Page({
             part: index,
             width: getModel(this.modelId).pieceSizes?.[index][0] || 116,
             height: getModel(this.modelId).pieceSizes?.[index][1] || 140,
+            scaleX: getModel(this.modelId).pieceScales?.[index]?.[p.index]?.[0] || 1,
+            scaleY: getModel(this.modelId).pieceScales?.[index]?.[p.index]?.[1] || 1,
+            mask: this.modelId === 'bear' ? '/assets/bear-material/' + (index === 0 ? 'head.png' : index === 1 ? 'body.png' : index === 2 ? (p.index === 0 ? 'left-ears.png' : 'right-ears.png') : (p.index === 0 ? 'left-arm.png' : 'right-arm.png')) : '',
             label: p.label || String.fromCharCode(65 + p.index)
           });
         }
@@ -274,16 +288,19 @@ Page({
     const slots = faces[part].map((_, index) => ({
       index,
       label: String.fromCharCode(65 + index),
-      name: this.modelId === 'bear' && part === 3 ? armLabels[this.data.language][index] : '',
+      name: this.modelId === 'bear' && part === 3 ? armLabels[this.data.language][index] : this.modelId === 'bear' && part === 2 ? (this.data.language === 'en' ? ['Left ear','Right ear'][index] : ['左耳','右耳'][index]) : '',
       placed: pieces.some(p => p.index === index),
       invalid: Boolean(pieceErrors[index] && pieceErrors[index].invalid)
     }));
+    const maskFor = index => '/assets/bear-material/' + (part === 0 ? 'head.png' : part === 1 ? 'body.png' : part === 2 ? (index === 0 ? 'left-ears.png' : 'right-ears.png') : (index === 0 ? 'left-arm.png' : 'right-arm.png'));
+    const model = getModel(this.modelId);
+    const piecesWithMasks = pieces.map(piece => ({...piece, mask: this.modelId === 'bear' ? maskFor(piece.index) : '', scaleX: model.pieceScales?.[part]?.[piece.index]?.[0] || 1, scaleY: model.pieceScales?.[part]?.[piece.index]?.[1] || 1}));
 
     this.setData({
       part,
       pieceWidth: getModel(this.modelId).pieceSizes?.[part][0] || 116,
       pieceHeight: getModel(this.modelId).pieceSizes?.[part][1] || 140,
-      pieces,
+      pieces: piecesWithMasks,
       placedGhosts,
       slots,
       selected,
@@ -485,6 +502,7 @@ Page({
   },
 
   updatePieces(pieces, selected, part = this.data.part) {
+    this.hasChanges=true;
     this.design[part] = {
       pieces,
       confirmed: false,
@@ -529,6 +547,7 @@ Page({
 
     const part = this.data.part;
     this.design[part].confirmed = true;
+    this.hasChanges=true;
 
     if (!this.store()) {
       this.design[part].confirmed = false;
@@ -590,6 +609,17 @@ Page({
   },
 
   back() {
+    if(this.hasChanges&&!this.record){this.setData({exitDialog:true});return;}
     wx.navigateBack();
+  },
+  cancelExit(){this.setData({exitDialog:false});},
+  confirmExit(){try{wx.removeStorageSync(this.draftKey)}catch(_){}this.hasChanges=false;if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();this.setData({exitDialog:false});wx.navigateBack();},
+  openSave(){this.setData({saveName:'',saveDialog:true});},
+  inputSaveName(e){this.setData({saveName:e.detail.value});},
+  cancelSave(){this.setData({saveDialog:false});},
+  saveToDesigns(){
+    if(!this.data.allDone){this.toast(this.data.t.all);return;}
+    if(!(this.data.saveName||'').trim()){this.toast(this.data.language==='en'?'Enter a design name':'请填写方案名称');return;}
+    try{const d=JSON.parse(JSON.stringify(this.design));this.faces.forEach((_,i)=>(d[i].pieces||[]).forEach(p=>{p.placement=this.texturePlacement(p,i)}));saveDesign(this.data.saveName,d,this.library,this.record&&this.record.id,this.modelId);try{wx.removeStorageSync(this.draftKey)}catch(_){}this.hasChanges=false;wx.reLaunch({url:'/pages/designs/index'});}catch(e){this.toast('保存失败，请检查各部位是否已确认');}
   }
 });

@@ -95,7 +95,7 @@ void main() {
 }
 `;
 
-// 读取项目中现有的 Rebear GLB 模板。
+// Read the supplied bear GLB by named nodes and retain each node's UV layout.
 function readBear(arrayBuffer) {
   const header = new DataView(arrayBuffer);
 
@@ -115,36 +115,69 @@ function readBear(arrayBuffer) {
     )
   );
 
+  const binOffset = 28 + jsonLength;
   function attribute(index) {
     const a = doc.accessors[index];
     const view = doc.bufferViews[a.bufferView];
-    const width = {
-      VEC3: 3,
-      VEC2: 2
-    }[a.type];
-
-    return new Float32Array(
-      arrayBuffer,
-      28 + jsonLength + (view.byteOffset || 0) + (a.byteOffset || 0),
-      a.count * width
-    );
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[a.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[a.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[a.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported bear GLB attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (a.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(a.count * width);
+    for (let i=0;i<a.count;i++) for(let k=0;k<width;k++) values[i*width+k]=header[read](offset+i*stride+k*bytes,true);
+    return values;
   }
 
-  return doc.meshes[0].primitives.map(({ attributes, material }) => {
-    const m = doc.materials[material];
-
-    return {
-      ...m.extras,
-
-      base: m.pbrMetallicRoughness.baseColorFactor
-        .slice(0, 3)
-        .map(c => 1.055 * c ** (1 / 2.4) - .055),
-
-      pos: attribute(attributes.POSITION),
-      normal: attribute(attributes.NORMAL),
-      uv: attribute(attributes.TEXCOORD_0)
-    };
-  });
+  const defs = {
+    head: ['head_front', null, 0], body: ['body_front', null, 1],
+    'left-ears': ['earL_front', null, 2], 'right-ears': ['earR_front', null, 2],
+    'left-arm': ['armL_upper', null, 3], 'right-arm': ['armR_upper', null, 3]
+  };
+  const parts = [];
+  function transform(node, x, y, z) {
+    const s=node.scale||[1,1,1], q=node.rotation||[0,0,0,1], t=node.translation||[0,0,0];
+    x*=s[0]; y*=s[1]; z*=s[2];
+    const qx=q[0], qy=q[1], qz=q[2], qw=q[3];
+    const ix=qw*x+qy*z-qz*y, iy=qw*y+qz*x-qx*z, iz=qw*z+qx*y-qy*x, iw=-qx*x-qy*y-qz*z;
+    return [ix*qw+iw*-qx+iy*-qz-iz*-qy+t[0],iy*qw+iw*-qy+iz*-qx-ix*-qz+t[1],iz*qw+iw*-qz+ix*-qy-iy*-qx+t[2]];
+  }
+  for (const node of doc.nodes || []) {
+    const def = defs[node.name];
+    if (!def || node.mesh === undefined) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) continue;
+      if (primitive.attributes.NORMAL === undefined || primitive.attributes.TEXCOORD_0 === undefined) continue;
+      const pos = attribute(primitive.attributes.POSITION), normal = attribute(primitive.attributes.NORMAL), uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined ? Array.from({length: pos.length / 3}, (_, i) => i) : Array.from(attribute(primitive.indices));
+      const groups = new Map();
+      indices.forEach((index, i) => {
+        const face = i < indices.length / 2 ? 0 : 1;
+        if (!groups.has(face)) groups.set(face, []);
+        groups.get(face).push(index);
+      });
+      const sideCount = def[1] ? 2 : 1;
+      for (let side = 0; side < sideCount; side++) {
+        const tris = indices;
+        const verts = tris.flatMap(i => transform(node,pos[i*3],pos[i*3+1],pos[i*3+2]));
+        const norms = tris.flatMap(i => transform(node,normal[i*3],normal[i*3+1],normal[i*3+2]));
+        const tex = tris.flatMap(i => [uv[i*2],uv[i*2+1]]);
+        const id = def[2] === 3 ? (node.name === 'left-arm' ? 'armL_upper' : 'armR_upper') : def[2] === 2 ? (node.name === 'left-ears' ? 'earL_front' : 'earR_front') : def[side];
+        const bounds=[Infinity,Infinity,-Infinity,-Infinity];
+        for(let i=0;i<tex.length;i+=2){bounds[0]=Math.min(bounds[0],tex[i]);bounds[1]=Math.min(bounds[1],tex[i+1]);bounds[2]=Math.max(bounds[2],tex[i]);bounds[3]=Math.max(bounds[3],tex[i+1]);}
+        const uvWidth=bounds[2]-bounds[0]||1, uvHeight=bounds[3]-bounds[1]||1;
+        for(let i=0;i<tex.length;i+=2){tex[i]=(tex[i]-bounds[0])/uvWidth;tex[i+1]=(tex[i+1]-bounds[1])/uvHeight;}
+        parts.push({id, group:def[2], label:def[2]===0?'头部':def[2]===1?'身体':def[2]===2?'耳朵':'手臂', side:side?'back':'front', base:[.72,.48,.32], pos:new Float32Array(verts), normal:new Float32Array(norms), uv:new Float32Array(tex), mask:'/assets/bear-material/'+node.name+'.png'});
+      }
+    }
+  }
+  if (!parts.length) throw new Error('Bear GLB has no supported named parts');
+  const min=[Infinity,Infinity,Infinity], max=[-Infinity,-Infinity,-Infinity];
+  parts.forEach(p=>p.pos.forEach((v,i)=>{const a=i%3;min[a]=Math.min(min[a],v);max[a]=Math.max(max[a],v);}));
+  const center=min.map((v,i)=>(v+max[i])/2), scale=1.18/Math.max(...max.map((v,i)=>v-min[i]));
+  parts.forEach(p=>p.pos.forEach((v,i)=>{const a=i%3;p.pos[i]=(v-center[a])*scale+(a===1?.91:0);}));
+  return parts;
 }
 
 // The supplied cushion has indexed meshes named top / bottom / loop.

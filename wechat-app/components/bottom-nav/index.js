@@ -7,12 +7,8 @@ Component({
   methods: {
     navigate(event) {
       const destination = event.currentTarget.dataset.id
-      if (destination === 'fabric' && this.data.active === 'fabric') {
-        this.triggerEvent('upload')
-        return
-      }
       if (destination === this.data.active) return
-      const routes = { home: '/pages/index/index', fabric: '/pages/fabric/fabric?upload=1', designs: '/pages/designs/index' }
+      const routes = { home: '/pages/index/index', fabric: '/pages/fabric/fabric', designs: '/pages/designs/index' }
       wx.reLaunch({ url: routes[destination] })
     }
   }

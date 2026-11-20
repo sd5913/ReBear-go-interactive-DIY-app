@@ -10,12 +10,10 @@ Object.assign(texts.en, {title: 'Fabric Library', preview: 'Design with Selected
 const { models, draftKey } = require('../../utils/model-catalog');
 Page({
  data:{language:'zh',selectedCount:0,guideVisible:false,guideLanguage:'zh',t:texts.zh,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
- onLoad(options){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.upload==='1'||options.sample==='1'){this._uploadGuideShownThisVisit=true;if(options.sample==='1')this.sample();else this.add()}},
- onShow(){try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}this.maybeShowUploadGuide()},
+ onLoad(options){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.sample==='1')this.sample()},
+ onShow(){this.selectedIds=new Set();try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}this.setData({sheet:'',guideVisible:false})},
  applyItems(items){
-   const previous=new Set(this.data.items.map(item=>item.id));
-   if(!this.selectedIds)this.selectedIds=new Set(items.map(item=>item.id));
-   items.forEach(item=>{if(!previous.has(item.id))this.selectedIds.add(item.id)});
+   if(!this.selectedIds)this.selectedIds=new Set();
    const available=new Set(items.map(item=>item.id));
    this.selectedIds=new Set([...this.selectedIds].filter(id=>available.has(id)));
    this.setData({items:items.map(item=>({...item,selected:this.selectedIds.has(item.id)})),selectedCount:this.selectedIds.size});
@@ -26,13 +24,7 @@ Page({
    this.applyItems(this.data.items);
  },
  // 每次重新进入上传页，空库就显示导览；相机/相册临时返回不重复弹。
- maybeShowUploadGuide(){
-   if(this._uploadGuideShownThisVisit||this.data.guideVisible||this.data.editing||this.data.sheet)return;
-   let items;try{items=wx.getStorageSync('rebear-fabrics')||[]}catch(e){return}
-   if(!Array.isArray(items)||items.length)return;
-   this._uploadGuideShownThisVisit=true;
-   this.setData({guideVisible:true});
- },
+ maybeShowUploadGuide(){},
  onUploadGuideComplete(){this.setData({guideVisible:false},()=>this.add())},
  onUploadGuideSkip(){this.setData({guideVisible:false})},
  choosePhoto(e){const manual=!!(this.data.editing||(e&&e.currentTarget&&e.currentTarget.dataset.mode==='manual'));const source=e&&e.currentTarget&&e.currentTarget.dataset.source;this.setData({sheet:''});wx.chooseMedia({count:1,mediaType:['image'],sourceType:source?[source]:['album','camera'],success:res=>{const photo=res.tempFiles[0].tempFilePath;if(manual){this.setData({image:photo,editing:true});wx.setNavigationBarTitle({title:this.data.t.editTitle});return}this.setData({editing:false,sheet:''});const suffix=this.editId?'?id='+encodeURIComponent(this.editId):'';wx.navigateTo({url:'/pages/measure/measure'+suffix,success:r=>{r.eventChannel.emit('photo',{path:photo})},fail:()=>this.toast(this.data.t.error)})},fail:e=>{if(!/cancel/.test(e.errMsg||''))this.toast(this.data.t.error)}})},
