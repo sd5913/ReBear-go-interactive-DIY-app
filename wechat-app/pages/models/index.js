@@ -34,7 +34,7 @@ Page({
     if (!ids.length) { wx.showToast({ title: this.data.t.missing, icon: 'none' }); return }
     this.setData({ opening: true })
     wx.navigateTo({
-      url: '/pages/design/design?model=' + model.id,
+      url: '/package-design/pages/design/design?model=' + model.id,
       success: page => {
         try { wx.setStorageSync('rebear-active-model', model.id) } catch (_) {}
         page.eventChannel.emit('selectedFabrics', { ids })

@@ -3,12 +3,20 @@
     "pages/index/index",
     "pages/fabric/fabric",
     "pages/models/index",
-    "pages/design/design",
     "pages/guide/guide",
     "pages/measure/measure",
     "pages/designs/index",
     "pages/design-detail/index",
     "pages/design-saved/index"
+  ],
+  "subPackages": [
+    {
+      "root": "package-design",
+      "name": "design",
+      "pages": [
+        "pages/design/design"
+      ]
+    }
   ],
   "window": {
     "navigationBarTextStyle": "black",

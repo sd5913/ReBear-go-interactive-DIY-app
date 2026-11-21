@@ -44,7 +44,7 @@ Page({
     wx.navigateTo({ url: '/pages/design-detail/index?id=' + encodeURIComponent(id) })
   },
   edit(event) {
-    wx.navigateTo({ url: '/pages/design/design?id=' + encodeURIComponent(event.currentTarget.dataset.id) })
+    wx.navigateTo({ url: '/package-design/pages/design/design?id=' + encodeURIComponent(event.currentTarget.dataset.id) })
   },
   selectAll() {
     const all = this.data.records.length === this.data.selectedIds.length

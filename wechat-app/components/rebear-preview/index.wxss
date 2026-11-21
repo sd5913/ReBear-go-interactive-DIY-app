@@ -4,3 +4,5 @@
 .views{display:flex;justify-content:center;gap:12rpx;margin-top:8rpx}
 .views button{margin:0;color:#583f33;background:#fffaf0;border-radius:100rpx;font-size:22rpx}
 .hint{padding:10rpx 14rpx;text-align:center;color:#78624e;font-size:22rpx}
+.preview.immersive{padding:0;background:transparent;border:0;border-radius:0}
+.canvas.immersive-canvas{height:620rpx;background:transparent}

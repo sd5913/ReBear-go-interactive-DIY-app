@@ -323,6 +323,8 @@ const fabrics = [
 
 function createBear(gl, buffer, options = {}) {
   const cushion = options.modelId === 'cushion';
+  const transparentBackground = Boolean(options.transparentBackground);
+  const modelScale = Number(options.modelScale) || 1;
   const parts = cushion ? readCushion(buffer) : readBear(buffer);
   const program = gl.createProgram();
 
@@ -537,7 +539,7 @@ function createBear(gl, buffer, options = {}) {
   function scale() {
     const width = gl.drawingBufferWidth;
     const height = gl.drawingBufferHeight;
-    const s = Math.min(width / 1.43, height / 2.15);
+    const s = Math.min(width / 1.43, height / 2.15) * modelScale;
 
     return [
       2 * s / width,
@@ -553,7 +555,8 @@ function createBear(gl, buffer, options = {}) {
       gl.drawingBufferHeight
     );
 
-    gl.clearColor(.968, .950, .917, 1);
+    if (transparentBackground) gl.clearColor(0, 0, 0, 0);
+    else gl.clearColor(.968, .950, .917, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.useProgram(program);

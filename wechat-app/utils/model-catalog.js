@@ -52,16 +52,25 @@ function migrateModelDesign(design, modelId) {
 }
 
 // Preserve the bear's existing piece sizes. Cushion pieces use their own display shapes.
-function pieceLayout(layout, modelId, part) {
+function pieceLayout(layout, modelId, part, sizeScale = 1) {
   const sizes = getModel(modelId).pieceSizes
   if (!layout) return layout
   const model = getModel(modelId)
-  if (model.id === 'bear' && model.pieceScales) return layout
-    ? { ...layout, pieceScales: model.pieceScales[part] }
-    : layout
-  if (!sizes) return layout
-  const unit = layout.padding / 10
-  return { ...layout, pieceWidth: sizes[part][0] * unit, pieceHeight: sizes[part][1] * unit }
+  let result = { ...layout }
+  if (model.id === 'bear' && model.pieceScales) {
+    result.pieceScales = model.pieceScales[part]
+  } else if (sizes) {
+    const unit = layout.padding / 10
+    result.pieceWidth = sizes[part][0] * unit
+    result.pieceHeight = sizes[part][1] * unit
+  }
+  const factor = Number(sizeScale)
+  if (Number.isFinite(factor) && factor > 0 && factor !== 1) {
+    result.pieceWidth *= factor
+    result.pieceHeight *= factor
+    result.padding *= factor
+  }
+  return result
 }
 
 module.exports = { models, getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout }

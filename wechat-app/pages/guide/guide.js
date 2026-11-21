@@ -57,8 +57,8 @@ Page({
   edit() {
     const pages = getCurrentPages()
     const previous = pages[pages.length - 2]
-    if (previous && previous.route === 'pages/design/design') wx.navigateBack()
-    else wx.navigateTo({url: '/pages/design/design?model=' + this.modelId + (this.id ? '&id=' + encodeURIComponent(this.id) : '')})
+    if (previous && /(?:^|\/)pages\/design\/design$/.test(previous.route || '')) wx.navigateBack()
+    else wx.navigateTo({url: '/package-design/pages/design/design?model=' + this.modelId + (this.id ? '&id=' + encodeURIComponent(this.id) : '')})
   },
   finish() {
     if (!this.data.complete) {

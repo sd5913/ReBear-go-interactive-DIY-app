@@ -5,7 +5,7 @@ const copy = {
     parts: ['头部', '身体', '耳朵', '手臂'],
     piece: '裁片',
     placed: '已摆放',
-    hint: '先选布料，再点裁片摆放。拖动裁片可调整位置。',
+    hint: '先选布料，再点裁片摆放。拖动调整位置，双指缩放时全部部位会同步变化。',
     fabric: '布料',
     add: '添加裁片',
     rotate: '旋转选中裁片',
@@ -29,7 +29,7 @@ const copy = {
     parts: ['Head', 'Body', 'Ears', 'Arms'],
     piece: 'pieces',
     placed: 'placed',
-    hint: 'Choose a fabric, then tap a piece to place it. Drag the piece to position it.',
+    hint: 'Choose a fabric, then tap a piece to place it. Drag to move; pinch to resize all parts together.',
     fabric: 'Fabric',
     add: 'Add a piece',
     rotate: 'Rotate selected',
@@ -49,14 +49,14 @@ const copy = {
   }
 };
 
-const { texturePlacement, validatePlacements } = require('../../utils/pattern-placement');
+const { texturePlacement, validatePlacements } = require('../../../utils/pattern-placement');
 
-const { findDesign, saveDesign } = require('../../utils/design-records');
-const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout } = require('../../utils/model-catalog');
+const { findDesign, saveDesign } = require('../../../utils/design-records');
+const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout } = require('../../../utils/model-catalog');
 
 const {
   armLabels
-} = require('../../utils/bear-layout');
+} = require('../../../utils/bear-layout');
 
 Page({
   data: {
@@ -110,6 +110,7 @@ Page({
     // A fresh design session always starts empty; only an explicit saved-design edit loads data.
     try { wx.removeStorageSync(this.draftKey); } catch (_) {}
     this.design = migrateModelDesign(this.record ? JSON.parse(JSON.stringify(this.record.design)) : {}, model.id);
+    if (!Number.isFinite(Number(this.design.__sizeScale)) || Number(this.design.__sizeScale) <= 0) this.design.__sizeScale = 1;
     this.library = [];
 
     const t = { ...copy[language], parts: model.parts[language] };
@@ -189,6 +190,7 @@ Page({
         this.layout = {
           width: rect.width,
           height: rect.height,
+          unit,
           pieceWidth: 116 * unit,
           pieceHeight: 140 * unit,
           padding: 10 * unit
@@ -203,7 +205,7 @@ Page({
   // 先在 px 坐标中旋转，再分别除以布料宽高，
   // 避免非正方形布料上的旋转产生比例错误。
   texturePlacement(piece, part = this.data.part) {
-    return texturePlacement(piece, pieceLayout(this.layout, this.modelId, part)) || { fabricId: piece.fabricId };
+    return texturePlacement(piece, pieceLayout(this.layout, this.modelId, part, this.design.__sizeScale)) || { fabricId: piece.fabricId };
   },
 
   refreshFabrics() {
@@ -263,7 +265,8 @@ Page({
             height: getModel(this.modelId).pieceSizes?.[index][1] || 140,
             scaleX: getModel(this.modelId).pieceScales?.[index]?.[p.index]?.[0] || 1,
             scaleY: getModel(this.modelId).pieceScales?.[index]?.[p.index]?.[1] || 1,
-            mask: this.modelId === 'bear' ? '/assets/bear-material/' + (index === 0 ? 'head.png' : index === 1 ? 'body.png' : index === 2 ? (p.index === 0 ? 'left-ears.png' : 'right-ears.png') : (p.index === 0 ? 'left-arm.png' : 'right-arm.png')) : '',
+            sizeScale: Number(this.design.__sizeScale) || 1,
+            mask: this.modelId === 'bear' ? '/package-design/assets/bear-material/' + (index === 0 ? 'head.png' : index === 1 ? 'body.png' : index === 2 ? (p.index === 0 ? 'left-ears.png' : 'right-ears.png') : (p.index === 0 ? 'left-arm.png' : 'right-arm.png')) : '',
             label: p.label || String.fromCharCode(65 + p.index)
           });
         }
@@ -292,9 +295,9 @@ Page({
       placed: pieces.some(p => p.index === index),
       invalid: Boolean(pieceErrors[index] && pieceErrors[index].invalid)
     }));
-    const maskFor = index => '/assets/bear-material/' + (part === 0 ? 'head.png' : part === 1 ? 'body.png' : part === 2 ? (index === 0 ? 'left-ears.png' : 'right-ears.png') : (index === 0 ? 'left-arm.png' : 'right-arm.png'));
+    const maskFor = index => '/package-design/assets/bear-material/' + (part === 0 ? 'head.png' : part === 1 ? 'body.png' : part === 2 ? (index === 0 ? 'left-ears.png' : 'right-ears.png') : (index === 0 ? 'left-arm.png' : 'right-arm.png'));
     const model = getModel(this.modelId);
-    const piecesWithMasks = pieces.map(piece => ({...piece, mask: this.modelId === 'bear' ? maskFor(piece.index) : '', scaleX: model.pieceScales?.[part]?.[piece.index]?.[0] || 1, scaleY: model.pieceScales?.[part]?.[piece.index]?.[1] || 1}));
+    const piecesWithMasks = pieces.map(piece => ({...piece, mask: this.modelId === 'bear' ? maskFor(piece.index) : '', scaleX: model.pieceScales?.[part]?.[piece.index]?.[0] || 1, scaleY: model.pieceScales?.[part]?.[piece.index]?.[1] || 1, sizeScale: Number(this.design.__sizeScale) || 1}));
 
     this.setData({
       part,
@@ -484,7 +487,100 @@ Page({
     });
   },
 
+  pieceSizePixels(part, index) {
+    const model = getModel(this.modelId);
+    const size = model.pieceSizes?.[part] || [116, 140];
+    const scale = model.pieceScales?.[part]?.[index] || [1, 1];
+    const unit = this.layout?.unit || ((wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()).windowWidth / 750);
+    return [size[0] * scale[0] * unit, size[1] * scale[1] * unit];
+  },
+
+  pieceTouchStart(e) {
+    if (!e.touches || e.touches.length < 2) return;
+    const index = Number(e.currentTarget.dataset.index);
+    if (!Number.isFinite(index)) return;
+
+    if (this.data.confirmed.some(Boolean)) {
+      if (this.scalePromptOpen) return;
+      this.scalePromptOpen = true;
+      wx.showModal({
+        content: this.data.language === 'en'
+          ? 'You have confirmed parts. Do you want to reset the pattern sizes?'
+          : '您已经有确认的部位，确认重新设置裁片大小吗？',
+        confirmText: this.data.language === 'en' ? 'Yes' : '是',
+        cancelText: this.data.language === 'en' ? 'No' : '否',
+        success: result => {
+          this.scalePromptOpen = false;
+          if (result.confirm) this.restartForRescale();
+        },
+        fail: () => { this.scalePromptOpen = false; }
+      });
+      this.pinch = null;
+      return;
+    }
+
+    const point = touch => ({x: Number(touch.clientX ?? touch.pageX ?? touch.x), y: Number(touch.clientY ?? touch.pageY ?? touch.y)});
+    const first = point(e.touches[0]);
+    const second = point(e.touches[1]);
+    const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
+    this.pinch = {
+      index,
+      startDistance: distance,
+      startScale: Number(this.design.__sizeScale) || 1,
+      design: JSON.parse(JSON.stringify(this.design))
+    };
+    this.setData({selected: index});
+  },
+
+  pieceTouchMove(e) {
+    const gesture = this.pinch;
+    if (!gesture || !e.touches || e.touches.length < 2) return;
+    const point = touch => ({x: Number(touch.clientX ?? touch.pageX ?? touch.x), y: Number(touch.clientY ?? touch.pageY ?? touch.y)});
+    const first = point(e.touches[0]);
+    const second = point(e.touches[1]);
+    const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
+    const sizeScale = Math.max(.5, Math.min(2.5, gesture.startScale * distance / gesture.startDistance));
+    if (Math.abs(sizeScale - (Number(this.design.__sizeScale) || 1)) < .005) return;
+
+    this.design = JSON.parse(JSON.stringify(gesture.design));
+    const delta = sizeScale - gesture.startScale;
+    this.faces.forEach((_, part) => {
+      (this.design[part]?.pieces || []).forEach(piece => {
+        const [width, height] = this.pieceSizePixels(part, piece.index);
+        piece.x = (Number(piece.x) || 0) - width * delta / 2;
+        piece.y = (Number(piece.y) || 0) - height * delta / 2;
+      });
+    });
+    this.design.__sizeScale = sizeScale;
+    this.hasChanges = true;
+    this.loadPart(this.data.part, gesture.index);
+  },
+
+  pieceTouchEnd(e) {
+    if (!this.pinch || (e.touches && e.touches.length >= 2)) return;
+    const selected = this.pinch.index;
+    this.pinch = null;
+    this.store();
+    this.loadPart(this.data.part, selected);
+  },
+
+  restartForRescale() {
+    this.design = {__sizeScale: 1};
+    this.faces.forEach((_, part) => {
+      this.design[part] = {
+        pieces: [],
+        confirmed: false,
+        ...(this.modelId === 'bear' && part === 3 ? {layoutVersion: 2} : {})
+      };
+    });
+    this.hasChanges = true;
+    this.pinch = null;
+    this.loadPart(this.data.part, -1);
+    this.store();
+  },
+
   move(e) {
+    if (this.pinch) return;
     if (!e.detail.source) return;
     if (!Number.isFinite(e.detail.x) || !Number.isFinite(e.detail.y)) return;
 
@@ -613,13 +709,37 @@ Page({
     wx.navigateBack();
   },
   cancelExit(){this.setData({exitDialog:false});},
+  cancelDialog(){
+    if(this.data.exitDialog)this.cancelExit();
+    else this.cancelSave();
+  },
+  confirmDialog(){
+    if(this.data.exitDialog)this.confirmExit();
+    else this.saveToDesigns();
+  },
   confirmExit(){try{wx.removeStorageSync(this.draftKey)}catch(_){}this.hasChanges=false;if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();this.setData({exitDialog:false});wx.navigateBack();},
-  openSave(){this.setData({saveName:'',saveDialog:true});},
+  openSave(){
+    if(!this.data.allDone){this.toast(this.data.t.all);return;}
+    this.setData({saveName:'',saveDialog:true});
+  },
   inputSaveName(e){this.setData({saveName:e.detail.value});},
   cancelSave(){this.setData({saveDialog:false});},
+  stopDialog(){},
   saveToDesigns(){
     if(!this.data.allDone){this.toast(this.data.t.all);return;}
     if(!(this.data.saveName||'').trim()){this.toast(this.data.language==='en'?'Enter a design name':'请填写方案名称');return;}
-    try{const d=JSON.parse(JSON.stringify(this.design));this.faces.forEach((_,i)=>(d[i].pieces||[]).forEach(p=>{p.placement=this.texturePlacement(p,i)}));saveDesign(this.data.saveName,d,this.library,this.record&&this.record.id,this.modelId);try{wx.removeStorageSync(this.draftKey)}catch(_){}this.hasChanges=false;wx.reLaunch({url:'/pages/designs/index'});}catch(e){this.toast('保存失败，请检查各部位是否已确认');}
+    try{
+      const d=JSON.parse(JSON.stringify(this.design));
+      this.faces.forEach((_,i)=>(d[i].pieces||[]).forEach(p=>{p.placement=this.texturePlacement(p,i)}));
+      saveDesign(this.data.saveName,d,this.library,this.record&&this.record.id,this.modelId);
+      try{wx.removeStorageSync(this.draftKey)}catch(_){}
+      this.hasChanges=false;
+      if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();
+      wx.reLaunch({url:'/pages/designs/index',fail:()=>this.toast('已保存，但无法打开我的设计，请返回查看')});
+    }catch(e){
+      console.error('Save design failed',e);
+      const message=e&&e.message==='Incomplete design'?'请先确认所有部位并检查裁片位置':e&&e.message==='Name required'?'请填写方案名称':'保存失败：'+(e&&e.message||'请重试');
+      this.toast(message);
+    }
   }
 });

@@ -1,8 +1,8 @@
-<view class="preview">
-  <canvas id="canvas" type="webgl" class="canvas" hidden="{{failed}}"
+<view class="preview {{immersive ? 'immersive' : ''}}">
+  <canvas id="canvas" type="webgl" class="canvas {{immersive ? 'immersive-canvas' : ''}}" hidden="{{failed}}"
     bindtouchstart="orbitStart" catchtouchmove="orbitMove" bindtouchend="orbitEnd" bindtouchcancel="orbitEnd"/>
   <view wx:if="{{failed}}" class="hint">{{t.error}}</view>
-  <block wx:else>
+  <block wx:elif="{{!immersive}}">
     <view class="views"><button size="mini" bindtap="front">{{t.front}}</button><button size="mini" bindtap="back">{{t.back}}</button></view>
     <view class="hint">{{textureError ? t.texture : (readOnly ? t.viewHint : t.hint)}}</view>
   </block>

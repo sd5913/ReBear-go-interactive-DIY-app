@@ -10,6 +10,7 @@ Component({
   properties:{
     modelId:{type:String,value:'bear',observer(){this.updateCopy();if(this.canvas)this.loadModel();}},
     readOnly:{type:Boolean,value:false},
+    immersive:{type:Boolean,value:false},
     fabrics:{type:Array,value:[]},
     assignments:{type:Object,value:{}},
     language:{type:String,value:'zh',observer(){this.updateCopy();}}
@@ -25,7 +26,7 @@ Component({
         try{
           if(!result||!result.node)throw new Error('Canvas unavailable');
           this.canvas=result.node;
-          const gl=this.canvas.getContext('webgl',{antialias:true,alpha:false});
+          const gl=this.canvas.getContext('webgl',{antialias:true,alpha:!!this.data.immersive});
           if(!gl)throw new Error('WebGL unavailable');
           const dpr=Math.min(2,(wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync()).pixelRatio||1);
           this.canvas.width=Math.round(result.width*dpr);
@@ -63,7 +64,7 @@ Component({
       this.updateCopy();
       try{
         const model=getModel(this.data.modelId);
-        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id});
+        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive,modelScale:this.data.immersive&&model.id==='bear'?1.25:1});
         this.bear.select(null);
         this.syncFabrics();
       }catch(error){

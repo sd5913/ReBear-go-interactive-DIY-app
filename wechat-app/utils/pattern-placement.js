@@ -80,7 +80,7 @@ function validatePlacements(design, fabrics, layout, modelId = 'bear') {
     const pieces = design[part] && design[part].pieces || []
     pieces.forEach(piece => {
       if (!ids[piece.index]) return
-      const placement = layout ? texturePlacement(piece, pieceLayout(layout, modelId, part)) : piece.placement
+      const placement = layout ? texturePlacement(piece, pieceLayout(layout, modelId, part, design.__sizeScale)) : piece.placement
       const outline = pieceOutline(part, placement, modelId, piece.index)
       const error = { outside: false, overlaps: [], invalid: false }
       parts[part].errors[piece.index] = error
