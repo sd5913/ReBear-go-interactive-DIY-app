@@ -13,13 +13,20 @@ const armLabels={
 function migrateDesign(design){
   if(!design)return design;
   const next={...design};
-  // Existing drafts stored front/back slots for every UV image. Keep the first
-  // placement for each actual image; each GLB UV image already contains both sides.
-  const keep=(record, indexes)=>record&&Array.isArray(record.pieces)?{...record,pieces:record.pieces.filter(piece=>indexes.includes(piece.index)).map((piece,index)=>({...piece,index,label:String.fromCharCode(65+index)})),confirmed:false}:record;
-  next[0]=keep(next[0],[0]);
-  next[1]=keep(next[1],[0]);
-  if(next[2]&&Array.isArray(next[2].pieces)) next[2]={...next[2],pieces:next[2].pieces.filter(p=>p.index===0||p.index===2).map((p,i)=>({...p,index:i,label:String.fromCharCode(65+i)})),confirmed:false};
-  if(next[3]&&Array.isArray(next[3].pieces)) next[3]={...next[3],pieces:next[3].pieces.filter(p=>p.index===0||p.index===2).map((p,i)=>({...p,index:i,label:String.fromCharCode(65+i)})),confirmed:false};
+  if(next.__layoutVersion===3)return next;
+  const legacy=Boolean(next[4] || [0,1].some(i=>next[i]?.pieces?.some(p=>p.index>0)) ||
+    [2,3].some(i=>next[i]?.pieces?.some(p=>p.index>=2)));
+  if(legacy){
+    [0,1,2,3].forEach(part=>{
+      const record=next[part];
+      if(!record||!Array.isArray(record.pieces))return;
+      const indexes=part<2?[0]:[0,2];
+      next[part]={...record,confirmed:false,pieces:record.pieces.filter(p=>indexes.includes(p.index))
+        .map(p=>({...p,index:indexes.indexOf(p.index),label:String.fromCharCode(65+indexes.indexOf(p.index))}))};
+    });
+    delete next[4];
+  }
+  next.__layoutVersion=3;
   return next;
 }
 

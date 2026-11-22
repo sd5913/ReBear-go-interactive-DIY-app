@@ -5,8 +5,8 @@
     <view class="headline {{language==='en'?'headline-en':''}}">{{t.headline}}</view>
     <view class="tagline">{{t.tagline}}</view>
     <view class="hero"><view class="hero-badge">{{t.badge}}</view><view class="halo"></view><rb-bear/><view class="floor-stitch">﹏﹏﹏﹏﹏﹏﹏﹏</view></view>
-    <button class="start-button" bindtap="startMaking">{{t.start}}</button><view class="note">{{t.note}}</view>
+    <button class="start-button" hover-class="upload-pressed" disabled="{{photoBusy}}" bindtap="startMaking">{{t.start}}</button><view class="note">{{t.note}}</view>
   </view>
   <bottom-nav active="home" language="{{language}}"/>
 </view>
-<view wx:if="{{sheet}}" class="sheet-mask" bindtap="closeSheet"><view class="sheet" catchtap="stop"><view class="sheet-handle"></view><template is="upload-sheet" data="{{t}}"/></view></view>
+<view wx:if="{{sheet}}" class="sheet-mask" bindtap="closeSheet"><view class="sheet" catchtap="stop"><view class="sheet-handle"></view><template is="upload-sheet" data="{{t, photoBusy, language}}"/></view></view>

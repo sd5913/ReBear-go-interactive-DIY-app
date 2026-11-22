@@ -7,7 +7,7 @@
   <view wx:if="{{records.length}}" class="design-grid">
     <view wx:for="{{records}}" wx:key="id" class="scheme-card paper-card {{item.selected ? 'selected' : ''}}">
       <view class="card-open" data-id="{{item.id}}" bindtap="open">
-        <view class="scheme-art"><view wx:if="{{item.modelId === 'cushion'}}" class="cushion-art" style="background-image:url('{{item.thumbnails[2]}}')"><view class="cushion-top" style="background-image:url('{{item.thumbnails[0]}}')"></view></view><rb-bear wx:else head="{{item.thumbnails[0]}}" body="{{item.thumbnails[1]}}" ears="{{item.thumbnails[2]}}" arms="{{item.thumbnails[3]}}" legs="{{item.thumbnails[4]}}"/></view>
+        <view class="scheme-art"><view wx:if="{{item.modelId === 'cushion'}}" class="cushion-art" style="background-image:url('{{item.thumbnails[2]}}')"><view class="cushion-top" style="background-image:url('{{item.thumbnails[0]}}')"></view></view><rb-bear wx:else head="{{item.thumbnails[0]}}" body="{{item.thumbnails[1]}}" ears="{{item.thumbnails[2]}}" arms="{{item.thumbnails[3]}}" legs="{{item.thumbnails[4] || item.thumbnails[1] || ''}}"/></view>
         <view class="scheme-info"><view class="scheme-name">{{item.name}}</view><view class="scheme-date">{{item.modelName}} · {{item.date}}</view></view>
         <view wx:if="{{managing}}" class="selection-box {{item.selected ? 'checked' : ''}}">{{item.selected ? '✓' : ''}}</view>
       </view>

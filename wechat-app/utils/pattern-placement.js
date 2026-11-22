@@ -1,5 +1,7 @@
-const { inside, overlap, validQuad } = require('./a4-geometry')
-const { getModel, pieceLayout } = require('./model-catalog')
+const { validQuad } = require('./a4-geometry')
+const { getModel, pieceLayout, fabricLayout } = require('./model-catalog')
+
+const masks = require('./pattern-masks')
 
 // Coordinates match the outer edge of .piece, excluding .piece-wrap padding.
 function texturePlacement(piece, layout) {
@@ -10,10 +12,13 @@ function texturePlacement(piece, layout) {
   const scale = layout.pieceScales && layout.pieceScales[piece.index] || [1, 1]
   const pieceWidth = layout.pieceWidth * scale[0]
   const pieceHeight = layout.pieceHeight * scale[1]
-  const width = pieceWidth - 2 * layout.padding * scale[0]
-  const height = pieceHeight - 2 * layout.padding * scale[1]
+  let width = pieceWidth - 2 * layout.padding * scale[0]
+  let height = pieceHeight - 2 * layout.padding * scale[1]
+  // Bear mask PNGs are square and displayed using aspectFit.
+  if (layout.pieceScales) width = height = Math.min(width, height)
   return {
     fabricId: piece.fabricId,
+    pixelSize: [1/layout.width, 1/layout.height],
     origin: [((Number(piece.x) || 0) + pieceWidth / 2) / layout.width,
       ((Number(piece.y) || 0) + pieceHeight / 2) / layout.height],
     axisX: [width * cos / layout.width, width * sin / layout.height],
@@ -27,16 +32,7 @@ function pieceOutline(part, placement, modelId = 'bear', slot = 0) {
   )) return null
   const { origin, axisX, axisY } = placement
   if (Math.abs(axisX[0] * axisY[1] - axisX[1] * axisY[0]) < 1e-12) return null
-  if (modelId === 'bear') {
-    const shapes = [
-      [[.02,.49],[.08,.3],[.3,.13],[.5,.02],[.7,.13],[.93,.3],[.98,.5],[.88,.73],[.7,.9],[.5,.98],[.3,.9],[.1,.73]],
-      [[.03,.08],[.28,.12],[.5,.18],[.72,.12],[.97,.08],[.94,.42],[.88,.65],[.95,.9],[.7,.98],[.55,.86],[.5,.78],[.45,.86],[.3,.98],[.05,.9],[.12,.65],[.06,.42]],
-      [[.08,.02],[.4,.16],[.52,.4],[.98,.48],[.9,.9],[.58,.98],[.45,.73],[.12,.58]],
-      [[.18,.02],[.56,.12],[.84,.32],[.98,.7],[.82,.98],[.62,.83],[.48,.62],[.3,.58],[.08,.42]]
-    ];
-    const polygon = shapes[part] || shapes[0];
-    return polygon.map(([x,y]) => ({x:placement.origin[0]+placement.axisX[0]*(x-.5)+placement.axisY[0]*(y-.5),y:placement.origin[1]+placement.axisX[1]*(x-.5)+placement.axisY[1]*(y-.5)}));
-  }
+  if (modelId === 'bear') return maskPolygons(part, placement, slot).flat()
   const points = []
   // Match border-radius:42%, and the ears' 50% 50% 35% 35% corners.
   for (let corner = 0; corner < 4; corner++) {
@@ -57,6 +53,64 @@ function pieceOutline(part, placement, modelId = 'bear', slot = 0) {
   const first = points[0], last = points[points.length - 1]
   if (points.length > 1 && Math.hypot(first.x - last.x, first.y - last.y) <= 1e-12) points.pop()
   return points
+}
+
+function maskPolygons(part, placement, slot) {
+  const name = part === 0 ? 'head' : part === 1 ? 'body' :
+    part === 2 ? (slot === 0 ? 'left-ears' : 'right-ears') : (slot === 0 ? 'left-arm' : 'right-arm')
+  return masks[name].map(poly => poly.map(([x,y]) => ({
+    x: placement.origin[0] + placement.axisX[0]*(x-.5) + placement.axisY[0]*(y-.5),
+    y: placement.origin[1] + placement.axisX[1]*(x-.5) + placement.axisY[1]*(y-.5)
+  })))
+}
+function bounds(poly) {
+  return {left:Math.min(...poly.map(p=>p.x)),right:Math.max(...poly.map(p=>p.x)),
+    top:Math.min(...poly.map(p=>p.y)),bottom:Math.max(...poly.map(p=>p.y))}
+}
+function intersects(a,b) {
+  return a.left < b.right-1e-9 && b.left < a.right-1e-9 && a.top < b.bottom-1e-9 && b.top < a.bottom-1e-9
+}
+
+// Clip convex silhouette strips; tolerate at most one displayed pixel of area.
+function cross(a,b,p){return (b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x)}
+function signedArea(poly){return poly.reduce((sum,p,i)=>{const q=poly[(i+1)%poly.length];return sum+p.x*q.y-p.y*q.x},0)/2}
+function intersectionArea(subject,clip){
+  let output=subject;
+  const sign=Math.sign(signedArea(clip));
+  for(let i=0;i<clip.length&&output.length;i++){
+    const a=clip[i],b=clip[(i+1)%clip.length],input=output;
+    output=[];
+    let previous=input[input.length-1],pd=sign*cross(a,b,previous);
+    for(const point of input){
+      const d=sign*cross(a,b,point);
+      if((d>=0)!==(pd>=0)){
+        const t=pd/(pd-d);
+        output.push({x:previous.x+(point.x-previous.x)*t,y:previous.y+(point.y-previous.y)*t});
+      }
+      if(d>=0)output.push(point);
+      previous=point;pd=d;
+    }
+  }
+  return output.length>=3?Math.abs(signedArea(output)):0;
+}
+function withinBoundary(point,boundary,pixel){
+  const sign=Math.sign(signedArea(boundary));
+  return boundary.every((a,i)=>{
+    const b=boundary[(i+1)%boundary.length];
+    const tolerance=.5*Math.hypot((b.y-a.y)*pixel[0],(b.x-a.x)*pixel[1]);
+    return sign*cross(a,b,point)>=-tolerance-1e-12;
+  });
+}
+function piecesOverlap(a,b){
+  if(!intersects(a.bounds,b.bounds))return false;
+  const tolerance=Math.min(a.pixel[0]*a.pixel[1],b.pixel[0]*b.pixel[1]);
+  let area=0;
+  for(const x of a.polygons)for(const y of b.polygons){
+    if(!intersects(x.bounds,y.bounds))continue;
+    area+=intersectionArea(x.poly,y.poly);
+    if(area>tolerance)return true;
+  }
+  return false;
 }
 
 function fabricBoundary(fabric) {
@@ -80,7 +134,7 @@ function validatePlacements(design, fabrics, layout, modelId = 'bear') {
     const pieces = design[part] && design[part].pieces || []
     pieces.forEach(piece => {
       if (!ids[piece.index]) return
-      const placement = layout ? texturePlacement(piece, pieceLayout(layout, modelId, part, design.__sizeScale)) : piece.placement
+      const placement = layout ? texturePlacement(piece, pieceLayout(fabricLayout(layout, piece.fabricId), modelId, part, design.__sizeScale)) : piece.placement
       const outline = pieceOutline(part, placement, modelId, piece.index)
       const error = { outside: false, overlaps: [], invalid: false }
       parts[part].errors[piece.index] = error
@@ -91,16 +145,18 @@ function validatePlacements(design, fabrics, layout, modelId = 'bear') {
         return
       }
       const boundary = boundaries.get(piece.fabricId) || []
-      error.outside = !boundary.length || outline.some(point => !inside(point, boundary)) ||
-        outline.some(point => point.x < -1e-9 || point.y < -1e-9 || point.x > 1 + 1e-9 || point.y > 1 + 1e-9)
-      entries.push({ part, piece, outline, error })
+      const pixel = Array.isArray(placement.pixelSize) && placement.pixelSize.length===2 && placement.pixelSize.every(v=>Number.isFinite(v)&&v>0) ? placement.pixelSize : [1e-6,1e-6]
+      error.outside = !boundary.length || outline.some(point => !withinBoundary(point, boundary, pixel)) ||
+        outline.some(point => point.x < -pixel[0]/2 || point.y < -pixel[1]/2 || point.x > 1 + pixel[0]/2 || point.y > 1 + pixel[1]/2)
+      const polygons = modelId === 'bear' ? maskPolygons(part, placement, piece.index) : [outline]
+      entries.push({ part, piece, outline, error, pixel, bounds:bounds(outline), polygons:polygons.map(poly=>({poly,bounds:bounds(poly)})) })
     })
   })
   for (let i = 0; i < entries.length; i++) {
     const a = entries[i]
     for (let j = i + 1; j < entries.length; j++) {
       const b = entries[j]
-      if (a.piece.fabricId !== b.piece.fabricId || !overlap(a.outline, b.outline)) continue
+      if (a.piece.fabricId !== b.piece.fabricId || !piecesOverlap(a,b)) continue
       a.error.overlaps.push({ part: b.part, index: b.piece.index })
       b.error.overlaps.push({ part: a.part, index: a.piece.index })
     }

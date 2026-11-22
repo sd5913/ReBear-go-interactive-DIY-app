@@ -73,4 +73,9 @@ function pieceLayout(layout, modelId, part, sizeScale = 1) {
   return result
 }
 
-module.exports = { models, getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout }
+function fabricLayout(layout, fabricId) {
+  if (!layout) return layout
+  return { ...layout, ...(layout.fabricSizes && layout.fabricSizes[fabricId] || {}) }
+}
+
+module.exports = { fabricLayout, models, getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout }

@@ -47,7 +47,7 @@ Object.assign(i18n.messages.en, {
   sample: 'Use a Sample', cancelSheet: 'Cancel', error: 'Something went wrong. Please try again.'
 });
 Page({
-  data: { language: 'zh', t: i18n.messages.zh, sheet: false },
+  data: { language: 'zh', t: i18n.messages.zh, sheet: false, photoBusy: false },
   onLoad() {
     const language = i18n.getLanguage()
     this.setData({ language, t: i18n.messages[language] })
@@ -60,25 +60,38 @@ Page({
   },
   about(){wx.showModal({title:this.data.t.aboutTitle,content:this.data.t.about,showCancel:false,confirmText:this.data.t.confirm})},
   guide(){const model=getModel(activeModelId());let d={},f=[];try{d=wx.getStorageSync(draftKey(model.id))||{};f=wx.getStorageSync('rebear-fabrics')||[]}catch(e){};if(isComplete(d,f,model.id))wx.navigateTo({url:'/pages/guide/guide?model='+model.id});else wx.showToast({title:this.data.language==='en'?'Confirm all model parts first.':'请先完成并确认模型的全部部位。',icon:'none'})},
-  startMaking() { this.setData({ sheet: true }) },
+  startMaking() {
+    if(this.data.photoBusy)return;
+    this.setData({sheet:true});
+  },
   closeSheet() { this.setData({ sheet: false }) },
   stop() {},
   sample() {
+    if(this.data.photoBusy)return;
     this.closeSheet()
     wx.navigateTo({ url: '/pages/fabric/fabric?sample=1' })
   },
   choosePhoto(event) {
-    this.closeSheet()
-    wx.chooseMedia({
-      count: 1, mediaType: ['image'], sourceType: [event.currentTarget.dataset.source],
-      success: result => wx.navigateTo({
-        url: '/pages/measure/measure?returnTo=fabric',
-        success: page => page.eventChannel.emit('photo', { path: result.tempFiles[0].tempFilePath }),
-        fail: () => wx.showToast({ title: this.data.t.error, icon: 'none' })
-      }),
-      fail: error => {
-        if (!/cancel/.test(error.errMsg || '')) wx.showToast({ title: this.data.t.error, icon: 'none' })
-      }
-    })
+    if(this.data.photoBusy)return;
+    this.setData({photoBusy:true});
+    const finish=()=>this.setData({photoBusy:false});
+    const fail=error=>{
+      finish();
+      if(!/cancel/i.test(error.errMsg||''))wx.showToast({title:this.data.t.error,icon:'none'});
+    };
+    const selected=path=>{
+      this.closeSheet();
+      wx.showLoading({title:this.data.language==='en'?'Opening photo':'正在打开照片',mask:true});
+      wx.navigateTo({
+        url:'/pages/measure/measure?returnTo=fabric',
+        success:page=>page.eventChannel.emit('photo',{path}),
+        fail:()=>wx.showToast({title:this.data.t.error,icon:'none'}),
+        complete:()=>{wx.hideLoading();finish();}
+      });
+    };
+    const sourceType=[event.currentTarget.dataset.source];
+    if(wx.chooseMedia)wx.chooseMedia({count:1,mediaType:['image'],sourceType,
+      success:result=>result.tempFiles?.[0]?.tempFilePath?selected(result.tempFiles[0].tempFilePath):fail({errMsg:'Empty photo'}),fail});
+    else wx.chooseImage({count:1,sourceType,success:result=>result.tempFilePaths?.[0]?selected(result.tempFilePaths[0]):fail({errMsg:'Empty photo'}),fail});
   }
 })

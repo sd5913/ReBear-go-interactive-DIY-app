@@ -15,18 +15,38 @@ Component({
     assignments:{type:Object,value:{}},
     language:{type:String,value:'zh',observer(){this.updateCopy();}}
   },
-  data:{t:copy.zh,failed:false,textureError:false},
+  data:{t:copy.zh,failed:false,textureError:false,canvasHeight:420},
   observers:{'fabrics, assignments':function(){this.syncFabrics();}},
   lifetimes:{
     ready(){
       this.alive=true;
       this.textures=new Map();
+      this.updateCanvasHeight(()=>this.initCanvas());
+    },
+    detached(){
+      this.alive=false;
+      if(this.bear)this.bear.dispose();
+      this.bear=null;
+    }
+  },
+  pageLifetimes:{
+    show(){this.updateCanvasHeight(()=>this.resizeCanvas());},
+    resize(){this.updateCanvasHeight(()=>this.resizeCanvas());}
+  },
+  methods:{
+    updateCanvasHeight(done){
+      const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync();
+      const unit=info.windowWidth/750;
+      const height=this.data.immersive?Math.max(240,Math.min(400,info.windowHeight*.3/unit)):420;
+      this.setData({canvasHeight:height},done);
+    },
+    initCanvas(){
       this.createSelectorQuery().select('#canvas').fields({node:true,size:true},result=>{
         if(!this.alive)return;
         try{
           if(!result||!result.node)throw new Error('Canvas unavailable');
           this.canvas=result.node;
-          const gl=this.canvas.getContext('webgl',{antialias:true,alpha:!!this.data.immersive});
+          const gl=this.canvas.getContext('webgl',{antialias:true,alpha:!!this.data.immersive,preserveDrawingBuffer:true});
           if(!gl)throw new Error('WebGL unavailable');
           const dpr=Math.min(2,(wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync()).pixelRatio||1);
           this.canvas.width=Math.round(result.width*dpr);
@@ -39,13 +59,16 @@ Component({
         }
       }).exec();
     },
-    detached(){
-      this.alive=false;
-      if(this.bear)this.bear.dispose();
-      this.bear=null;
-    }
-  },
-  methods:{
+    resizeCanvas(){
+      if(!this.alive||!this.canvas)return;
+      this.createSelectorQuery().select('#canvas').fields({size:true},rect=>{
+        if(!rect||!rect.width||!rect.height||!this.alive)return;
+        const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync();
+        const dpr=Math.min(2,info.pixelRatio||1);
+        this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
+        if(this.bear)this.bear.render();
+      }).exec();
+    },
     updateCopy(){
       const t={...(copy[this.data.language]||copy.zh)};
       if(this.data.modelId==='cushion')Object.assign(t,this.data.language==='en'?{
@@ -64,7 +87,7 @@ Component({
       this.updateCopy();
       try{
         const model=getModel(this.data.modelId);
-        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive,modelScale:this.data.immersive&&model.id==='bear'?1.25:1});
+        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive});
         this.bear.select(null);
         this.syncFabrics();
       }catch(error){

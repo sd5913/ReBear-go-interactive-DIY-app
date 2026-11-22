@@ -52,7 +52,7 @@ const copy = {
 const { texturePlacement, validatePlacements } = require('../../../utils/pattern-placement');
 
 const { findDesign, saveDesign } = require('../../../utils/design-records');
-const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout } = require('../../../utils/model-catalog');
+const { getModel, draftKey, activeModelId, migrateModelDesign, pieceLayout, fabricLayout } = require('../../../utils/model-catalog');
 
 const {
   armLabels
@@ -171,41 +171,48 @@ Page({
     this.measureLayout();
   },
 
-  // movable-view 的 x/y 使用 px。
+  // 裁片位置和手势统一使用布料场景中的 px。
   // 这里将现有 WXSS 中的 rpx 尺寸转换为同一坐标单位。
   measureLayout() {
-    this.createSelectorQuery()
-      .select('.cloth-image')
-      .boundingClientRect(rect => {
-        if (!rect || !rect.width || !rect.height) return;
-
-        const info = wx.getWindowInfo
-          ? wx.getWindowInfo()
-          : wx.getSystemInfoSync();
-
-        const unit = info.windowWidth / 750;
-
-        // 对应现有 design.wxss：
-        // .piece-wrap：116rpx × 140rpx，padding：10rpx。
-        this.layout = {
-          width: rect.width,
-          height: rect.height,
-          unit,
-          pieceWidth: 116 * unit,
-          pieceHeight: 140 * unit,
-          padding: 10 * unit
-        };
-
-        this.loadPart(this.data.part, this.data.selected);
-      })
-      .exec();
+    if (!this.faces || !this.library.length) return;
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const unit = info.windowWidth / 750;
+    const maxWidth = info.windowWidth - 80 * unit, maxHeight = 600 * unit;
+    const fabricSizes = {};
+    this.library.forEach(fabric => {
+      const bounds = fabric.measurement?.boundsCm || fabric;
+      const ratio = Number(bounds.width) / Number(bounds.height) || 1;
+      const width = Math.min(maxWidth, maxHeight * ratio);
+      fabricSizes[fabric.id] = {width, height:width / ratio};
+    });
+    const previous = this.layout;
+    this.layout = {width:maxWidth,height:maxHeight,unit,pieceWidth:116*unit,pieceHeight:140*unit,padding:10*unit,fabricSizes};
+    if (previous && previous.unit !== unit) this.faces.forEach((_,part) => {
+      (this.design[part]?.pieces || []).forEach(piece => {
+        const old = texturePlacement(piece,pieceLayout(fabricLayout(previous,piece.fabricId),this.modelId,part,this.design.__sizeScale));
+        const current = fabricLayout(this.layout,piece.fabricId);
+        const [w,h] = this.pieceSizePixels(part,piece.index);
+        piece.x = old.origin[0]*current.width - w*this.design.__sizeScale/2;
+        piece.y = old.origin[1]*current.height - h*this.design.__sizeScale/2;
+      });
+    });
+    if (!previous && this.record) this.faces.forEach((_,part) => {
+      (this.design[part]?.pieces || []).forEach(piece => {
+        if (!piece.placement?.origin) return;
+        const current=fabricLayout(this.layout,piece.fabricId);
+        const [w,h]=this.pieceSizePixels(part,piece.index);
+        piece.x=piece.placement.origin[0]*current.width-w*this.design.__sizeScale/2;
+        piece.y=piece.placement.origin[1]*current.height-h*this.design.__sizeScale/2;
+      });
+    });
+    this.loadPart(this.data.part,this.data.selected);
   },
 
   // 将裁片位置和旋转转换成布料图片中的采样坐标。
   // 先在 px 坐标中旋转，再分别除以布料宽高，
   // 避免非正方形布料上的旋转产生比例错误。
   texturePlacement(piece, part = this.data.part) {
-    return texturePlacement(piece, pieceLayout(this.layout, this.modelId, part, this.design.__sizeScale)) || { fabricId: piece.fabricId };
+    return texturePlacement(piece, pieceLayout(fabricLayout(this.layout, piece.fabricId), this.modelId, part, this.design.__sizeScale)) || { fabricId: piece.fabricId };
   },
 
   refreshFabrics() {
@@ -228,7 +235,7 @@ Page({
       fabricIndex
     });
 
-    this.loadPart(this.data.part);
+    this.measureLayout();
   },
 
   loadPart(part, selected = -1) {
@@ -279,14 +286,36 @@ Page({
     const confirmed = faces.map((ids, index) => {
       const record = this.design[index];
       if (!record) return false;
-      if (placementReady && !validation.parts[index].valid) record.confirmed = false;
+      // Temporary collisions suspend validity without erasing another part’s confirmation.
       return Boolean(record.confirmed && record.pieces.length === ids.length &&
         placementReady && validation.parts[index].valid);
     });
     const pieceErrors = validation.parts[part].errors;
+    placedGhosts.forEach(ghost => {
+      ghost.invalid = Boolean(validation.parts[ghost.part].errors[ghost.index]?.invalid);
+      ghost.status = ghost.invalid ? '!' : confirmed[ghost.part] ? '✓' : '…';
+    });
+    const cloth = fabricLayout(this.layout, this.data.items[this.data.fabricIndex]?.id);
+
 
 
     const pieces = this.design[part]?.pieces || [];
+    const invalidSlot=Object.keys(pieceErrors).find(key=>pieceErrors[key].invalid);
+    const countComplete=pieces.length===faces[part].length;
+    const en=this.data.language==='en';
+    const error=invalidSlot!==undefined?pieceErrors[invalidSlot]:null;
+    let currentIssue='';
+    if(error){
+      const label=String.fromCharCode(65+Number(invalidSlot));
+      if(error.outside)currentIssue=en?'Piece '+label+' is outside the fabric.':'裁片 '+label+' 超出布料范围。';
+      else {
+        const other=error.overlaps[0];
+        currentIssue=en?'Piece '+label+' overlaps '+this.data.t.parts[other.part]+' '+String.fromCharCode(65+other.index)+'.':
+          '裁片 '+label+' 与'+this.data.t.parts[other.part]+' '+String.fromCharCode(65+other.index)+' 重叠。';
+      }
+    }else if(!countComplete)currentIssue=this.data.t.need;
+    else if(!confirmed[part])currentIssue=en?'Position valid. Confirm this part to continue.':'位置正常，请确认当前部位。';
+
 
     const slots = faces[part].map((_, index) => ({
       index,
@@ -301,6 +330,10 @@ Page({
 
     this.setData({
       part,
+      currentIssue,
+      confirmedCount:confirmed.filter(Boolean).length, partCount:faces.length,
+      clothWidth: cloth ? cloth.width / cloth.unit : 670,
+      clothHeight: cloth ? cloth.height / cloth.unit : 350,
       pieceWidth: getModel(this.modelId).pieceSizes?.[part][0] || 116,
       pieceHeight: getModel(this.modelId).pieceSizes?.[part][1] || 140,
       pieces: piecesWithMasks,
@@ -323,10 +356,6 @@ Page({
       assignments,
 
       previewFabrics: this.library.filter(f => used.has(f.id))
-    }, () => {
-      if (!this.layout && this.data.items.length) {
-        this.measureLayout();
-      }
     });
   },
 
@@ -334,11 +363,18 @@ Page({
     this.loadPart(Number(e.currentTarget.dataset.index));
   },
 
+  selectGhost(e) {
+    const part=Number(e.currentTarget.dataset.part),slot=Number(e.currentTarget.dataset.slot);
+    const selected=this.design[part].pieces.findIndex(p=>p.index===slot);
+    this.loadPart(part,selected);
+  },
+
   selectFabric(e) {
     this.setData({
       fabricIndex: Number(e.currentTarget.dataset.index),
       selected: -1
     });
+    this.loadPart(this.data.part);
   },
 
   addPiece(e) {
@@ -496,32 +532,20 @@ Page({
   },
 
   pieceTouchStart(e) {
-    if (!e.touches || e.touches.length < 2) return;
+    if (!e.touches || !e.touches.length) return;
     const index = Number(e.currentTarget.dataset.index);
     if (!Number.isFinite(index)) return;
-
-    if (this.data.confirmed.some(Boolean)) {
-      if (this.scalePromptOpen) return;
-      this.scalePromptOpen = true;
-      wx.showModal({
-        content: this.data.language === 'en'
-          ? 'You have confirmed parts. Do you want to reset the pattern sizes?'
-          : '您已经有确认的部位，确认重新设置裁片大小吗？',
-        confirmText: this.data.language === 'en' ? 'Yes' : '是',
-        cancelText: this.data.language === 'en' ? 'No' : '否',
-        success: result => {
-          this.scalePromptOpen = false;
-          if (result.confirm) this.restartForRescale();
-        },
-        fail: () => { this.scalePromptOpen = false; }
-      });
-      this.pinch = null;
+    this.setData({selected:index});
+    if (e.touches.length === 1) {
+      const touch=e.touches[0], piece=this.design[this.data.part]?.pieces[index];
+      if(piece)this.pieceDrag={index,x:Number(touch.clientX??touch.pageX??touch.x),y:Number(touch.clientY??touch.pageY??touch.y),px:piece.x,py:piece.y};
       return;
     }
-
+    this.pieceDrag=null;
     const point = touch => ({x: Number(touch.clientX ?? touch.pageX ?? touch.x), y: Number(touch.clientY ?? touch.pageY ?? touch.y)});
     const first = point(e.touches[0]);
     const second = point(e.touches[1]);
+    if(![first.x,first.y,second.x,second.y].every(Number.isFinite))return;
     const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
     this.pinch = {
       index,
@@ -534,10 +558,23 @@ Page({
 
   pieceTouchMove(e) {
     const gesture = this.pinch;
-    if (!gesture || !e.touches || e.touches.length < 2) return;
+    if (!e.touches || !e.touches.length) return;
+    if (!gesture) {
+      const drag=this.pieceDrag;
+      if(!drag || e.touches.length!==1)return;
+      const touch=e.touches[0];
+      const x=drag.px+Number(touch.clientX??touch.pageX??touch.x)-drag.x;
+      const y=drag.py+Number(touch.clientY??touch.pageY??touch.y)-drag.y;
+      if(!Number.isFinite(x)||!Number.isFinite(y))return;
+      const pieces=this.design[this.data.part].pieces.map((p,i)=>i===drag.index?{...p,x,y}:p);
+      this.updatePieces(pieces,drag.index,this.data.part,false);
+      return;
+    }
+    if(e.touches.length<2)return;
     const point = touch => ({x: Number(touch.clientX ?? touch.pageX ?? touch.x), y: Number(touch.clientY ?? touch.pageY ?? touch.y)});
     const first = point(e.touches[0]);
     const second = point(e.touches[1]);
+    if(![first.x,first.y,second.x,second.y].every(Number.isFinite))return;
     const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
     const sizeScale = Math.max(.5, Math.min(2.5, gesture.startScale * distance / gesture.startDistance));
     if (Math.abs(sizeScale - (Number(this.design.__sizeScale) || 1)) < .005) return;
@@ -551,12 +588,16 @@ Page({
         piece.y = (Number(piece.y) || 0) - height * delta / 2;
       });
     });
+    this.faces.forEach((_,part)=>{if(this.design[part]?.pieces?.length)this.design[part].confirmed=false;});
     this.design.__sizeScale = sizeScale;
     this.hasChanges = true;
     this.loadPart(this.data.part, gesture.index);
   },
 
   pieceTouchEnd(e) {
+    const dragged=Boolean(this.pieceDrag);
+    this.pieceDrag=null;
+    if(dragged)this.store();
     if (!this.pinch || (e.touches && e.touches.length >= 2)) return;
     const selected = this.pinch.index;
     this.pinch = null;
@@ -579,25 +620,7 @@ Page({
     this.store();
   },
 
-  move(e) {
-    if (this.pinch) return;
-    if (!e.detail.source) return;
-    if (!Number.isFinite(e.detail.x) || !Number.isFinite(e.detail.y)) return;
-
-    const i = Number(e.currentTarget.dataset.index);
-    const current = this.data.pieces[i];
-    if (!current || (current.x === e.detail.x && current.y === e.detail.y)) return;
-
-    const pieces = this.data.pieces.map((p, n) => n === i ? {
-      ...p,
-      x: e.detail.x,
-      y: e.detail.y
-    } : p);
-
-    this.updatePieces(pieces, i);
-  },
-
-  updatePieces(pieces, selected, part = this.data.part) {
+  updatePieces(pieces, selected, part = this.data.part, persist = true) {
     this.hasChanges=true;
     this.design[part] = {
       pieces,
@@ -606,7 +629,7 @@ Page({
     };
 
     this.loadPart(part, selected);
-    this.store();
+    if(persist)this.store();
   },
 
   rotate() {
@@ -617,7 +640,7 @@ Page({
       return;
     }
 
-    const pieces = this.data.pieces.map((p, n) => n === i ? {
+    const pieces = this.design[this.data.part].pieces.map((p, n) => n === i ? {
       ...p,
       angle: (p.angle + 45) % 360
     } : p);
@@ -718,15 +741,40 @@ Page({
     else this.saveToDesigns();
   },
   confirmExit(){try{wx.removeStorageSync(this.draftKey)}catch(_){}this.hasChanges=false;if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();this.setData({exitDialog:false});wx.navigateBack();},
+  explainIncomplete(){
+    this.loadPart(this.data.part,this.data.selected);
+    const validation=validatePlacements(this.design,this.library,this.layout,this.modelId);
+    const part=this.faces.findIndex((ids,i)=>!this.design[i]?.confirmed || this.design[i].pieces.length!==ids.length || !validation.parts[i].valid);
+    if(part<0)return false;
+    const errors=validation.parts[part].errors;
+    const slot=Object.keys(errors).find(key=>errors[key].invalid);
+    let reason=this.data.language==='en'?'Confirm this part first':'请确认此部位';
+    if(slot!==undefined){
+      const error=errors[slot];
+      reason=(this.data.language==='en'?'Piece ':'裁片 ')+String.fromCharCode(65+Number(slot))+' '+
+        (error.outside?(this.data.language==='en'?'is outside the fabric':'超出布料范围'):(this.data.language==='en'?'overlaps another piece':'与其他裁片重叠'));
+      const piece=this.design[part].pieces.find(p=>p.index===Number(slot));
+      const fabricIndex=this.data.items.findIndex(f=>f.id===piece?.fabricId);
+      if(fabricIndex>=0)this.setData({fabricIndex});
+    }else if((this.design[part]?.pieces.length||0)!==this.faces[part].length) reason=this.data.t.need;
+    const target=this.design[part]?.pieces.find(p=>slot!==undefined?p.index===Number(slot):true);
+    if(target){
+      const fabricIndex=this.data.items.findIndex(f=>f.id===target.fabricId);
+      if(fabricIndex>=0)this.setData({fabricIndex});
+    }
+    this.loadPart(part);
+    wx.showModal({title:this.data.t.parts[part],content:reason,showCancel:false});
+    return true;
+  },
   openSave(){
-    if(!this.data.allDone){this.toast(this.data.t.all);return;}
-    this.setData({saveName:'',saveDialog:true});
+    if(this.explainIncomplete())return;
+    this.setData({saveName:this.record?.name||'',saveDialog:true});
   },
   inputSaveName(e){this.setData({saveName:e.detail.value});},
   cancelSave(){this.setData({saveDialog:false});},
   stopDialog(){},
   saveToDesigns(){
-    if(!this.data.allDone){this.toast(this.data.t.all);return;}
+    if(this.explainIncomplete()){this.setData({saveDialog:false});return;}
     if(!(this.data.saveName||'').trim()){this.toast(this.data.language==='en'?'Enter a design name':'请填写方案名称');return;}
     try{
       const d=JSON.parse(JSON.stringify(this.design));

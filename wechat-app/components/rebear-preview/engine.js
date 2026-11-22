@@ -324,8 +324,17 @@ const fabrics = [
 function createBear(gl, buffer, options = {}) {
   const cushion = options.modelId === 'cushion';
   const transparentBackground = Boolean(options.transparentBackground);
-  const modelScale = Number(options.modelScale) || 1;
   const parts = cushion ? readCushion(buffer) : readBear(buffer);
+  // Center the actual mesh, then fit all eight box corners to the current orbit.
+  const minimum=[Infinity,Infinity,Infinity],maximum=[-Infinity,-Infinity,-Infinity];
+  parts.forEach(part=>part.pos.forEach((value,i)=>{
+    minimum[i%3]=Math.min(minimum[i%3],value);maximum[i%3]=Math.max(maximum[i%3],value);
+  }));
+  const center=minimum.map((v,i)=>(v+maximum[i])/2);
+  parts.forEach(part=>part.pos.forEach((value,i)=>{part.pos[i]=value-center[i%3]+(i%3===1?.91:0);}));
+  const half=minimum.map((v,i)=>(maximum[i]-v)/2);
+  const corners=[];
+  for(const x of [-half[0],half[0]])for(const y of [-half[1],half[1]])for(const z of [-half[2],half[2]])corners.push([x,y,z]);
   const program = gl.createProgram();
 
   for (const [type, source] of [
@@ -537,14 +546,15 @@ function createBear(gl, buffer, options = {}) {
   }
 
   function scale() {
-    const width = gl.drawingBufferWidth;
-    const height = gl.drawingBufferHeight;
-    const s = Math.min(width / 1.43, height / 2.15) * modelScale;
-
-    return [
-      2 * s / width,
-      2 * s / height
-    ];
+    const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+    const [cy,sy,cp,sp]=orbit();
+    let extentX=1e-4,extentY=1e-4;
+    for(const [x,y,z] of corners){
+      extentX=Math.max(extentX,Math.abs(cy*x-sy*z));
+      extentY=Math.max(extentY,Math.abs(cp*y-sp*(sy*x+cy*z)));
+    }
+    const fit=Math.min(width*.86/(2*extentX),height*.86/(2*extentY));
+    return [2*fit/width,2*fit/height];
   }
 
   function render() {

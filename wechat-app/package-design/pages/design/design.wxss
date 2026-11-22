@@ -17,3 +17,16 @@
 .pattern-piece{position:absolute;inset:10rpx;width:calc(100% - 20rpx);height:calc(100% - 20rpx);pointer-events:none;opacity:1}.mask-idle{filter:brightness(0) saturate(100%) invert(51%) sepia(73%) saturate(409%) hue-rotate(82deg) brightness(92%) contrast(90%);opacity:.62}.mask-selected,.placed-mask{filter:brightness(0) saturate(100%) invert(16%) sepia(5%) saturate(305%) hue-rotate(169deg) brightness(94%) contrast(90%);opacity:.9}.pattern-label{position:absolute;left:0;right:0;top:45%;text-align:center;font-size:18rpx;color:#fff;text-shadow:0 1rpx 2rpx #263238}.current-piece{background:transparent;border:0}
 .confirm-mask{position:fixed;inset:0;z-index:1000;background:rgba(45,31,24,.48);display:flex;align-items:center;justify-content:center;padding:40rpx;box-sizing:border-box}.confirm-card{width:100%;max-width:620rpx;padding:38rpx;background:#fffbf2;border:1rpx solid #c7ac8e;border-radius:28rpx;box-sizing:border-box}.confirm-title{font-size:32rpx;font-weight:700;line-height:1.5;color:#4d3429;margin-bottom:22rpx}.confirm-card input{height:82rpx;padding:0 20rpx;border:1rpx solid #c7ac8e;border-radius:14rpx;background:#fffefa;font-size:26rpx;color:#4d3429}.confirm-actions{display:flex;gap:18rpx;margin-top:28rpx}.confirm-actions button{flex:1;margin:0;width:auto;max-width:none;border-radius:18rpx;font-size:25rpx;line-height:1.5}.confirm-actions button.primary{background:#4d3429;color:#fffbf2}
 
+
+/* Shared scene coordinates: ordinary positioned views have no native drag clamping. */
+.cloth{position:relative;margin-left:auto;margin-right:auto;box-sizing:content-box;border:0;outline:1rpx solid #aaa}
+.piece-wrap{position:absolute;left:0;top:0;padding:0;touch-action:none}
+.placed-piece-ghost{pointer-events:auto;z-index:2}
+.current-piece{z-index:3}
+.piece-invalid{outline:2rpx dashed #c7352b!important;outline-offset:-2rpx}
+.piece-invalid .pattern-piece{filter:sepia(1) saturate(10) hue-rotate(310deg)!important;opacity:.9}
+.pattern-piece{mix-blend-mode:normal}
+.piece{position:absolute;inset:10rpx;width:calc(100% - 20rpx);height:calc(100% - 20rpx)}
+
+.preview-sticky{position:relative;background:#fffbf2;padding:8rpx 0}
+.current-issue{font-size:23rpx;line-height:1.6;color:#88715c;min-height:36rpx}.completion-status{font-size:24rpx;line-height:1.6;color:#795540;margin-top:26rpx;text-align:center}
