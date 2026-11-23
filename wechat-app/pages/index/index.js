@@ -37,7 +37,7 @@ const { isComplete } = require('../../utils/design-records')
 Object.assign(i18n.messages.zh,{description:'一块旧布，也能有新的陪伴。',start:'开始制作',prepare:'准备布料',story:'把故事缝进小熊',home:'首页',studio:'制作工坊',guide:'制作指南',badge:'小熊营业中 ♡',aboutTitle:'旧衣新生计划',about:'把舍不得的旧衣，做成可以陪伴你的小熊。先准备布料，再设计拼布，最后查看制作指南。',notReady:'先完成小熊的五个部位设计，就能查看对应清单。'});
 Object.assign(i18n.messages.en,{headline:'Turn treasured clothes\ninto memories to hold.',description:'Old fabric, a new companion.',start:'Start Creating My Bear →',note:'No sign-in needed. Bring a piece of old clothing.',prepare:'Prepare Your Fabric',prepareHint:'Add a photo · Select · Measure',story:'Sew in Your Story',storyHint:'Old fabric, a new companion',home:'Home',studio:'Workshop',guide:'Making Guide',badge:'Bear workshop is open ♡',aboutTitle:'Give Clothes a New Life',about:'Turn treasured clothing into a bear. Prepare your fabric, design each part, then explore the making guide.',notReady:'Finish designing all five parts to view your checklist.'});
 Object.assign(i18n.messages.zh, {
-  headline: '旧衣服，新的陪伴', tagline: '把熟悉的布料，变成自己的小熊。', start: '上传',
+  headline: '旧衣服，新的陪伴', tagline: '把熟悉的布料，变成自己的小熊。', start: '开启新故事',
   note: '拍摄或选择一张旧衣照片', photoTitle: '上传布料', photoHint: '选择照片，标记布料并测量尺寸。',
   camera: '拍摄照片', album: '从相册选择', sample: '使用示例照片', cancelSheet: '取消', error: '操作失败，请重试'
 });

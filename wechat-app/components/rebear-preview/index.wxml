@@ -1,6 +1,8 @@
 <view class="preview {{immersive ? 'immersive' : ''}}">
-  <canvas id="canvas" type="webgl" class="canvas {{immersive ? 'immersive-canvas' : ''}} {{failed ? 'canvas-hidden' : ''}}" style="height:{{canvasHeight}}rpx" hidden="{{failed}}"
+  <canvas id="canvas" type="webgl" class="canvas {{immersive ? 'immersive-canvas' : ''}} {{failed || suspend ? 'canvas-hidden' : ''}}" style="height:{{canvasHeight}}rpx" hidden="{{failed || suspend}}"
     bindtouchstart="orbitStart" catchtouchmove="orbitMove" bindtouchend="orbitEnd" bindtouchcancel="orbitEnd"/>
+  <cover-view wx:if="{{selectable && !suspend}}" class="model-actions"><cover-view class="model-action confirm-action {{canConfirm ? '' : 'disabled'}}" bindtap="confirmAction" role="button"><cover-view class="model-action-icon">✓</cover-view><cover-view>{{language === 'en' ? 'Confirm' : '确认'}}</cover-view></cover-view><cover-view class="model-action save-action {{canSave ? '' : 'disabled'}}" bindtap="saveAction" role="button"><cover-view class="model-action-icon">♡</cover-view><cover-view>{{language === 'en' ? 'Save' : '保存'}}</cover-view></cover-view></cover-view>
+  <cover-view wx:if="{{celebrating && !suspend}}" class="celebration" style="left:{{celebrationX}}%;top:{{celebrationY}}%"><cover-view class="success-check">✓</cover-view><cover-view class="spark spark-a">✦</cover-view><cover-view class="spark spark-b">✦</cover-view><cover-view class="spark spark-c">✧</cover-view><cover-view class="spark spark-d">✧</cover-view><cover-view class="spark spark-e">·</cover-view><cover-view class="spark spark-f">·</cover-view></cover-view>
   <view wx:if="{{failed}}" class="hint">{{t.error}}</view>
   <block wx:elif="{{!immersive}}">
     <view class="views"><button class="view-button" size="mini" bindtap="front">{{t.front}}</button><button class="view-button" size="mini" bindtap="back">{{t.back}}</button></view>

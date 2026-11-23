@@ -18,6 +18,7 @@ Page({
         return {
           id: record.id, name: record.name, date: displayDate(record.updatedAt),
           modelId: model.id, modelName: model.names[this.data.language],
+          thumbnail: record.thumbnail || '/assets/bear-model.png',
           thumbnails: designView(record.design, record.fabrics, model.parts[this.data.language], this.data.t.fabric, model.id).thumbnails,
           selected: this.data.selectedIds.includes(record.id)
         }

@@ -24,11 +24,12 @@ Page({
    this.applyItems(this.data.items);
  },
  // 每次重新进入上传页，空库就显示导览；相机/相册临时返回不重复弹。
- maybeShowUploadGuide(){},
- onUploadGuideComplete(){this.setData({guideVisible:false},()=>this.add())},
- onUploadGuideSkip(){this.setData({guideVisible:false})},
+ maybeShowUploadGuide(){if(this.data.items.length)return false;let dismissed=false;try{dismissed=wx.getStorageSync('rebear-upload-guide-dismissed')===true}catch(e){}if(dismissed)return false;this.setData({sheet:'',guideVisible:true});return true},
+ onUploadGuideComplete(){this.setData({guideVisible:false},()=>this.openUploadSheet())},
+ onUploadGuideSkip(){try{wx.setStorageSync('rebear-upload-guide-dismissed',true)}catch(e){}this.setData({guideVisible:false})},
  choosePhoto(e){const manual=!!(this.data.editing||(e&&e.currentTarget&&e.currentTarget.dataset.mode==='manual'));const source=e&&e.currentTarget&&e.currentTarget.dataset.source;this.setData({sheet:''});wx.chooseMedia({count:1,mediaType:['image'],sourceType:source?[source]:['album','camera'],success:res=>{const photo=res.tempFiles[0].tempFilePath;if(manual){this.setData({image:photo,editing:true});wx.setNavigationBarTitle({title:this.data.t.editTitle});return}this.setData({editing:false,sheet:''});const suffix=this.editId?'?id='+encodeURIComponent(this.editId):'';wx.navigateTo({url:'/pages/measure/measure'+suffix,success:r=>{r.eventChannel.emit('photo',{path:photo})},fail:()=>this.toast(this.data.t.error)})},fail:e=>{if(!/cancel/.test(e.errMsg||''))this.toast(this.data.t.error)}})},
- add(){this.editId=null;this.setData({width:'',height:'',image:'',selectionSize:60,x:40,y:40});this.region=null;this.setData({sheet:'photo'})},
+ add(){if(!this.data.items.length&&this.maybeShowUploadGuide())return;this.openUploadSheet()},
+ openUploadSheet(){this.editId=null;this.setData({width:'',height:'',image:'',selectionSize:60,x:40,y:40,sheet:'photo'});this.region=null},
  input(e){this.setData({[e.currentTarget.dataset.field]:e.detail.value})},
  resize(e){this.region={x:0,y:0};this.setData({selectionSize:Number(e.detail.value),x:0,y:0})},
  move(e){this.region={x:e.detail.x,y:e.detail.y}},

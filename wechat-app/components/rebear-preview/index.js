@@ -11,6 +11,12 @@ Component({
     modelId:{type:String,value:'bear',observer(){this.updateCopy();if(this.canvas)this.loadModel();}},
     readOnly:{type:Boolean,value:false},
     immersive:{type:Boolean,value:false},
+    selectable:{type:Boolean,value:false},
+    suspend:{type:Boolean,value:false},
+    selectedPart:{type:Number,value:-1,observer(){this.updateSelectedGroup();}},
+    confirmed:{type:Boolean,value:false,observer(){this.updateSelectedGroup();}},
+    canConfirm:{type:Boolean,value:false},
+    canSave:{type:Boolean,value:false},
     fabrics:{type:Array,value:[]},
     assignments:{type:Object,value:{}},
     language:{type:String,value:'zh',observer(){this.updateCopy();}}
@@ -25,6 +31,7 @@ Component({
     },
     detached(){
       this.alive=false;
+      clearTimeout(this.celebrationTimer);
       if(this.bear)this.bear.dispose();
       this.bear=null;
     }
@@ -34,10 +41,41 @@ Component({
     resize(){this.updateCanvasHeight(()=>this.resizeCanvas());}
   },
   methods:{
+    updateSelectedGroup(){if(this.bear&&this.data.selectable)this.bear.selectGroup(this.data.confirmed?-1:this.data.selectedPart);},
+    showCelebration(value){
+      if(!value||!Number.isInteger(value.part)||value.part<0)return;
+      const positions=[{x:50,y:25},{x:50,y:60},{x:50,y:24},{x:50,y:56}];
+      const pos=this.partAnchors?.[value.part]||positions[value.part]||positions[0];
+      clearTimeout(this.celebrationTimer);
+      this.setData({celebrating:false},()=>{
+        this.setData({celebrating:true,celebrationX:pos.x,celebrationY:pos.y});
+        this.celebrationTimer=setTimeout(()=>this.setData({celebrating:false}),1100);
+      });
+    },
+    playConfirmation(part){
+      if(this.bear&&this.data.selectable&&this.data.selectedPart===part)this.bear.selectGroup(-1);
+      this.showCelebration({part,key:Date.now()});
+    },
+    async captureThumbnail(){
+      if(!this.bear||!this.canvas)throw new Error('3D preview is not ready');
+      const width=this.canvas.width,height=this.canvas.height;
+      let data;
+      try{
+        this.canvas.width=480;this.canvas.height=480;
+        data=this.bear.captureFront();
+      }finally{
+        this.canvas.width=width;this.canvas.height=height;
+        if(this.bear)this.bear.render();
+      }
+      const base64=data.slice(data.indexOf(',')+1);
+      const path=wx.env.USER_DATA_PATH+'/rebear-preview-'+Date.now()+'-'+Math.random().toString(36).slice(2,6)+'.png';
+      await new Promise((resolve,reject)=>wx.getFileSystemManager().writeFile({filePath:path,data:base64,encoding:'base64',success:resolve,fail:reject}));
+      return path;
+    },
     updateCanvasHeight(done){
       const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync();
       const unit=info.windowWidth/750;
-      const height=this.data.immersive?Math.max(240,Math.min(400,info.windowHeight*.3/unit)):420;
+      const height=this.data.immersive?Math.max(240,Math.min(this.data.selectable ? 1000 : 400,info.windowHeight*(this.data.selectable ? .62 : .3)/unit)):420;
       this.setData({canvasHeight:height},done);
     },
     initCanvas(){
@@ -46,6 +84,7 @@ Component({
         try{
           if(!result||!result.node)throw new Error('Canvas unavailable');
           this.canvas=result.node;
+          this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.canvasRect=rect;}).exec();
           const gl=this.canvas.getContext('webgl',{antialias:true,alpha:!!this.data.immersive,preserveDrawingBuffer:true});
           if(!gl)throw new Error('WebGL unavailable');
           const dpr=Math.min(2,(wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync()).pixelRatio||1);
@@ -68,6 +107,7 @@ Component({
         this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
         if(this.bear)this.bear.render();
       }).exec();
+      this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.canvasRect=rect;}).exec();
     },
     updateCopy(){
       const t={...(copy[this.data.language]||copy.zh)};
@@ -89,6 +129,7 @@ Component({
         const model=getModel(this.data.modelId);
         this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive});
         this.bear.select(null);
+        if(this.data.selectable)this.bear.selectGroup(this.data.confirmed?-1:this.data.selectedPart);
         this.syncFabrics();
       }catch(error){
         console.warn('ReBear model preview',error);
@@ -135,6 +176,7 @@ Component({
       if(e.touches.length!==1)return;
       const t=e.touches[0];
       this.orbit={x:t.clientX??t.x,y:t.clientY??t.y};
+      this.tapStart={x:this.orbit.x,y:this.orbit.y};
     },
     orbitMove(e){
       if(!this.bear||!this.orbit||e.touches.length!==1)return;
@@ -142,7 +184,26 @@ Component({
       this.bear.rotate(x-this.orbit.x,y-this.orbit.y);
       this.orbit={x,y};
     },
-    orbitEnd(){this.orbit=null;},
+    orbitEnd(e){
+      this.orbit=null;
+      const start=this.tapStart;this.tapStart=null;
+      if(!this.data.selectable||!this.bear||!start||!e||!e.changedTouches||!e.changedTouches.length)return;
+      const t=e.changedTouches[0],x=t.clientX??t.x,y=t.clientY??t.y;
+      if(Math.hypot(x-start.x,y-start.y)>14)return;
+      const rect=this.canvasRect;
+      if(!rect||!rect.width||!rect.height)return;
+      const part=this.bear.pick((x-rect.left)/rect.width,(y-rect.top)/rect.height);
+      if(!part)return;
+      const hit=this.bear.parts.find(item=>item.id===part);
+      if(hit){
+        const point={x:(x-rect.left)/rect.width*100,y:(y-rect.top)/rect.height*100};
+        if(!this.partAnchors)this.partAnchors={};
+        this.partAnchors[hit.group]=point;
+        this.triggerEvent('partselect',{index:hit.group});
+      }
+    },
+    confirmAction(){if(this.data.canConfirm)this.triggerEvent('confirmaction');},
+    saveAction(){if(this.data.canSave)this.triggerEvent('saveaction');},
     measureDropArea(){
       this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.dropRect=rect;}).exec();
     },

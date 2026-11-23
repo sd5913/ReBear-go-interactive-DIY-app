@@ -5,7 +5,7 @@ const copy = {
     parts: ['头部', '身体', '耳朵', '手臂'],
     piece: '裁片',
     placed: '已摆放',
-    hint: '先选布料，再点裁片摆放。拖动调整位置，双指缩放时全部部位会同步变化。',
+    hint: '点击小熊身上的部位切换裁片；先选布料，再点裁片摆放。拖动调整位置，双指缩放时全部部位会同步变化。',
     fabric: '布料',
     add: '添加裁片',
     rotate: '旋转选中裁片',
@@ -29,7 +29,7 @@ const copy = {
     parts: ['Head', 'Body', 'Ears', 'Arms'],
     piece: 'pieces',
     placed: 'placed',
-    hint: 'Choose a fabric, then tap a piece to place it. Drag to move; pinch to resize all parts together.',
+    hint: 'Tap a bear part to switch pieces. Choose a fabric, then tap a piece to place it. Drag to move; pinch to resize all parts together.',
     fabric: 'Fabric',
     add: 'Add a piece',
     rotate: 'Rotate selected',
@@ -82,7 +82,7 @@ Page({
     previewFabrics: [],
     assignments: {},
     drag: null
-    ,exitDialog:false, saveDialog:false, saveName:''
+    ,exitDialog:false, saveDialog:false, saveName:'', saving:false
   },
 
   onLoad(options) {
@@ -177,7 +177,8 @@ Page({
     if (!this.faces || !this.library.length) return;
     const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const unit = info.windowWidth / 750;
-    const maxWidth = info.windowWidth - 80 * unit, maxHeight = 600 * unit;
+    const contentWidth=info.windowWidth-80*unit;
+    const maxWidth = Math.max(180*unit,contentWidth*.7), maxHeight = 600 * unit;
     const fabricSizes = {};
     this.library.forEach(fabric => {
       const bounds = fabric.measurement?.boundsCm || fabric;
@@ -361,6 +362,11 @@ Page({
 
   selectPart(e) {
     this.loadPart(Number(e.currentTarget.dataset.index));
+  },
+
+  onModelPartSelect(e) {
+    const part=Number(e.detail.index);
+    if(Number.isInteger(part)&&part>=0&&part<this.faces.length)this.loadPart(part);
   },
 
   selectGhost(e) {
@@ -673,6 +679,9 @@ Page({
       return;
     }
 
+    const preview=this.selectComponent('#bear-preview');
+    if(preview&&preview.playConfirmation)preview.playConfirmation(part);
+
     this.loadPart(part);
     this.toast(this.data.t.saved);
 
@@ -773,18 +782,26 @@ Page({
   inputSaveName(e){this.setData({saveName:e.detail.value});},
   cancelSave(){this.setData({saveDialog:false});},
   stopDialog(){},
-  saveToDesigns(){
+  async saveToDesigns(){
+    if(this.data.saving)return;
     if(this.explainIncomplete()){this.setData({saveDialog:false});return;}
     if(!(this.data.saveName||'').trim()){this.toast(this.data.language==='en'?'Enter a design name':'请填写方案名称');return;}
+    this.setData({saving:true});
     try{
       const d=JSON.parse(JSON.stringify(this.design));
       this.faces.forEach((_,i)=>(d[i].pieces||[]).forEach(p=>{p.placement=this.texturePlacement(p,i)}));
-      saveDesign(this.data.saveName,d,this.library,this.record&&this.record.id,this.modelId);
+      let thumbnail='';
+      if(this.modelId==='bear'){
+        const preview=this.selectComponent('#bear-preview');
+        if(preview&&preview.captureThumbnail)try{thumbnail=await preview.captureThumbnail();}catch(error){console.warn('Could not capture bear preview',error);}
+      }
+      saveDesign(this.data.saveName,d,this.library,this.record&&this.record.id,this.modelId,thumbnail);
       try{wx.removeStorageSync(this.draftKey)}catch(_){}
       this.hasChanges=false;
       if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();
       wx.reLaunch({url:'/pages/designs/index',fail:()=>this.toast('已保存，但无法打开我的设计，请返回查看')});
     }catch(e){
+      this.setData({saving:false});
       console.error('Save design failed',e);
       const message=e&&e.message==='Incomplete design'?'请先确认所有部位并检查裁片位置':e&&e.message==='Name required'?'请填写方案名称':'保存失败：'+(e&&e.message||'请重试');
       this.toast(message);

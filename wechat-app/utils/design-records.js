@@ -28,7 +28,7 @@ function isComplete(design, fabrics, modelId = 'bear') {
   })
 }
 
-function saveDesign(name, design, fabrics, id, modelId = 'bear') {
+function saveDesign(name, design, fabrics, id, modelId = 'bear', thumbnail = '') {
   const records = listDesigns()
   const previous = id && records.find(record => record.id === id)
   if (id && !previous) throw new Error('Design no longer exists')
@@ -46,6 +46,7 @@ function saveDesign(name, design, fabrics, id, modelId = 'bear') {
     createdAt: previous ? previous.createdAt : now,
     updatedAt: now,
     design: normalized,
+    thumbnail: thumbnail || previous?.thumbnail || (model.id === 'bear' ? '/assets/bear-model.png' : ''),
     // Each saved scheme owns its fabric references, dimensions and measured placement.
     fabrics: clone(fabrics.filter(fabric => used.has(fabric.id)))
   }

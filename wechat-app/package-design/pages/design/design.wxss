@@ -30,3 +30,7 @@
 
 .preview-sticky{position:relative;background:#fffbf2;padding:8rpx 0}
 .current-issue{font-size:23rpx;line-height:1.6;color:#88715c;min-height:36rpx}.completion-status{font-size:24rpx;line-height:1.6;color:#795540;margin-top:26rpx;text-align:center}
+.preview-sticky{padding:0}.model-bear .preview-sticky{margin:6rpx -16rpx 0}
+.model-bear{padding-top:0}.model-bear .preview-sticky{margin-top:0}
+.model-bear .preview-sticky{position:relative}
+.placement-row{display:flex;gap:3%;align-items:flex-start;width:100%;overflow:visible}.workbench-column{width:70%;flex:0 0 70%;min-width:0}.placement-row .cloth{max-width:100%;margin-left:0;margin-right:0}.side-tray{width:27%;flex:0 0 27%;display:flex;flex-direction:column;flex-wrap:nowrap;gap:16rpx;margin:0;padding:0;background:transparent;align-items:stretch}.side-tray .slot{box-sizing:border-box;width:100%;min-height:96rpx;padding:10rpx 4rpx;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}

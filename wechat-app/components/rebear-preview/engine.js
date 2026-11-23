@@ -5,6 +5,8 @@ attribute vec3 aPos, aNormal;
 attribute vec2 aUV;
 
 uniform vec4 uOrbit, uScale;
+uniform vec3 uCenter;
+uniform float uExpand;
 
 varying vec3 vNormal;
 varying vec2 vUV;
@@ -24,7 +26,8 @@ vec3 rotate(vec3 p) {
 }
 
 void main() {
-  vec3 q = rotate(aPos - vec3(0., .91, 0.));
+  vec3 expanded = uCenter + (aPos - uCenter) * uExpand;
+  vec3 q = rotate(expanded - vec3(0., .91, 0.));
 
   gl_Position = vec4(
     q.x * uScale.x,
@@ -50,9 +53,13 @@ uniform sampler2D uFabric;
 uniform vec2 uUvOrigin, uUvX, uUvY;
 
 uniform vec3 uBase;
-uniform float uTextured, uSelected;
+uniform float uTextured, uSelected, uGlow;
 
 void main() {
+  if (uGlow > .5) {
+    gl_FragColor = vec4(1., .57, .13, .88);
+    return;
+  }
   vec2 uv =
     uUvOrigin +
     uUvX * (vUV.x - .5) +
@@ -88,7 +95,7 @@ void main() {
     mix(
       base * diffuse,
       vec3(.99, .78, .43),
-      .17 * uSelected
+      .38 * uSelected
     ),
     1.
   );
@@ -176,7 +183,12 @@ function readBear(arrayBuffer) {
   const min=[Infinity,Infinity,Infinity], max=[-Infinity,-Infinity,-Infinity];
   parts.forEach(p=>p.pos.forEach((v,i)=>{const a=i%3;min[a]=Math.min(min[a],v);max[a]=Math.max(max[a],v);}));
   const center=min.map((v,i)=>(v+max[i])/2), scale=1.18/Math.max(...max.map((v,i)=>v-min[i]));
-  parts.forEach(p=>p.pos.forEach((v,i)=>{const a=i%3;p.pos[i]=(v-center[a])*scale+(a===1?.91:0);}));
+  parts.forEach(p=>{
+    p.pos.forEach((v,i)=>{const a=i%3;p.pos[i]=(v-center[a])*scale+(a===1?.91:0);});
+    const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
+    p.pos.forEach((v,i)=>{const a=i%3;lo[a]=Math.min(lo[a],v);hi[a]=Math.max(hi[a],v);});
+    p.center=lo.map((v,i)=>(v+hi[i])/2);
+  });
   return parts;
 }
 
@@ -377,7 +389,10 @@ function createBear(gl, buffer, options = {}) {
       'uUvY',
       'uBase',
       'uTextured',
-      'uSelected'
+      'uSelected',
+      'uCenter',
+      'uExpand',
+      'uGlow'
     ].map(k => [
       k,
       gl.getUniformLocation(program, k)
@@ -389,6 +404,7 @@ function createBear(gl, buffer, options = {}) {
   const adjustable = parts.filter(p => !p.fixed);
 
   let selected = cushion ? 'cushion_top' : 'head_front';
+  let selectedGroup = null;
   let yaw = 0;
   let pitch = cushion ? .65 : 0;
   let preview = null;
@@ -610,6 +626,22 @@ function createBear(gl, buffer, options = {}) {
 
       const tex = material || textures.get('empty');
 
+      const isSelected=(selectedGroup!==null&&p.group===selectedGroup)||p.id===(preview?.part.id||selected);
+      gl.uniform3fv(uniform.uCenter,p.center);
+      if(isSelected){
+        gl.uniform1f(uniform.uSelected,1);
+        gl.uniform1f(uniform.uExpand,1.055);
+        gl.uniform1f(uniform.uGlow,1);
+        gl.depthMask(false);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLES,0,p.pos.length/3);
+        gl.disable(gl.BLEND);
+        gl.depthMask(true);
+      }
+      gl.uniform1f(uniform.uExpand,1);
+      gl.uniform1f(uniform.uGlow,0);
+
       gl.bindTexture(gl.TEXTURE_2D, tex.handle);
 
       gl.uniform2fv(
@@ -630,10 +662,7 @@ function createBear(gl, buffer, options = {}) {
       gl.uniform3fv(uniform.uBase, p.base);
       gl.uniform1f(uniform.uTextured, material ? 1 : 0);
 
-      gl.uniform1f(
-        uniform.uSelected,
-        p.id === (preview?.part.id || selected) ? 1 : 0
-      );
+      gl.uniform1f(uniform.uSelected,isSelected?1:0);
 
       gl.drawArrays(
         gl.TRIANGLES,
@@ -734,7 +763,21 @@ function createBear(gl, buffer, options = {}) {
 
     select(id) {
       selected = id;
+      selectedGroup = null;
       render();
+    },
+
+    selectGroup(group) {
+      selectedGroup=Number.isInteger(group)?group:null;
+      selected=null;
+      render();
+    },
+
+    captureFront(){
+      const state={yaw,pitch,selected,selectedGroup,preview};
+      yaw=0;pitch=0;selected=null;selectedGroup=null;preview=null;
+      try{render();return gl.canvas.toDataURL('image/png');}
+      finally{yaw=state.yaw;pitch=state.pitch;selected=state.selected;selectedGroup=state.selectedGroup;preview=state.preview;render();}
     },
 
     preview(id, part, both = false) {
@@ -771,6 +814,7 @@ function createBear(gl, buffer, options = {}) {
 
       preview = null;
       selected = part;
+      selectedGroup = null;
 
       render();
       return true;
