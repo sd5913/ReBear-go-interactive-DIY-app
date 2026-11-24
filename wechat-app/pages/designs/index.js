@@ -1,11 +1,14 @@
 const copy = require('../../utils/design-copy')
 const { getLanguage } = require('../../utils/i18n')
-const { listDesigns, deleteDesigns, designView, displayDate } = require('../../utils/design-records')
+const { updateThumbnail, listDesigns, deleteDesigns, designView, displayDate } = require('../../utils/design-records')
 const { getModel } = require('../../utils/model-catalog')
 
 Page({
-  data: { t: copy.zh, language: 'zh', records: [], managing: false, selectedIds: [], deleteIds: [], error: '' },
+  data: { t: copy.zh, language: 'zh', records: [], managing: false, selectedIds: [], deleteIds: [], error: '', repairItems: [] },
   onShow() {
+    this.closed=false;
+    if(!this.thumbnailAttempts)this.thumbnailAttempts=new Set();
+    if(!this.failedThumbnails)this.failedThumbnails=new Set();
     const language = getLanguage()
     this.setData({ language, t: copy[language] })
     wx.setNavigationBarTitle({ title: copy[language].title })
@@ -18,15 +21,51 @@ Page({
         return {
           id: record.id, name: record.name, date: displayDate(record.updatedAt),
           modelId: model.id, modelName: model.names[this.data.language],
-          thumbnail: record.thumbnail || '/assets/bear-model.png',
+          thumbnail: record.thumbnailVersion===2&&!this.failedThumbnails?.has(record.id)?record.thumbnail:'',
           thumbnails: designView(record.design, record.fabrics, model.parts[this.data.language], this.data.t.fabric, model.id).thumbnails,
           selected: this.data.selectedIds.includes(record.id)
         }
       })
       const selectedIds = this.data.selectedIds.filter(id => records.some(record => record.id === id))
       this.setData({ records, selectedIds, error: '', managing: records.length > 0 && this.data.managing })
+      this.repairNextThumbnail()
     } catch (_) {
       this.setData({ error: this.data.t.saveError })
+    }
+  },
+  onUnload(){this.closed=true;},
+  thumbnailError(event){
+    this.failedThumbnails.add(event.currentTarget.dataset.id);
+    this.refresh();
+  },
+  repairNextThumbnail(){
+    if(this.closed||this.repairActive)return;
+    const record=listDesigns().find(item=>getModel(item.modelId).id==='bear'&&
+      (item.thumbnailVersion!==2||!item.thumbnail||this.failedThumbnails.has(item.id))&&!this.thumbnailAttempts.has(item.id));
+    if(!record){this.setData({repairItems:[]});return;}
+    this.thumbnailAttempts.add(record.id);
+    this.repairActive=record;
+    const model=getModel(record.modelId);
+    const view=designView(record.design,record.fabrics,model.parts[this.data.language],this.data.t.fabric,model.id);
+    this.setData({repairItems:[{id:record.id,fabrics:record.fabrics,assignments:view.assignments}]});
+  },
+  skipThumbnailRepair(event){
+    if(this.repairActive?.id!==event.currentTarget.dataset.id)return;
+    this.repairActive=null;
+    if(!this.closed)this.setData({repairItems:[]},()=>this.refresh());
+  },
+  async repairThumbnail(event){
+    const record=this.repairActive;
+    if(!record||record.id!==event.currentTarget.dataset.id)return;
+    try{
+      const preview=this.selectComponent('#thumbnail-repair');
+      const thumbnail=await preview.captureThumbnail();
+      updateThumbnail(record.id,thumbnail,record.updatedAt);
+      this.failedThumbnails.delete(record.id);
+    }catch(error){console.warn('ReBear thumbnail repair',error);}
+    finally{
+      this.repairActive=null;
+      if(!this.closed){this.setData({repairItems:[]},()=>this.refresh());}
     }
   },
   toggleManage() {

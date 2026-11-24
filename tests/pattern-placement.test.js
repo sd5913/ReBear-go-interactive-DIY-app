@@ -44,7 +44,7 @@ function page(design = { __sizeScale: 1 }) {
   delete require.cache[file]
   require(file)
   const instance = { ...spec, data: clone(spec.data), design: clone(design), modelId: 'bear',
-    faces, draftKey: 'rebear-design', library: fabrics, layout,
+    faces, draftKey: 'rebear-design', library: fabrics, layout, selectComponent(){return null;},
     setData(value, done) { Object.assign(this.data, value); if (done) done() }
   }
   instance.data.items = fabrics
@@ -142,13 +142,13 @@ test('different fabric aspect ratios retain equivalent live and saved validation
   const design = {__sizeScale:1,0:{pieces:[piece(0,20,20)],confirmed:true}}
   assert.deepEqual(validatePlacements(normalize(design,scene),fabrics),validatePlacements(design,fabrics,scene))
 })
-test('all six confirmed slots save and reopen without migration resetting them', () => {
+test('all six confirmed slots save and reopen without migration resetting them', async () => {
   const { p, storage, notices } = page(completeDraft())
   assert.equal(p.data.allDone,true)
   p.openSave()
   assert.equal(p.data.saveDialog,true)
   p.data.saveName = '回归方案'
-  p.saveToDesigns()
+  await p.saveToDesigns()
   const [saved] = storage.get('rebear-saved-designs')
   assert.equal(saved.name,'回归方案')
   assert.equal(isComplete(saved.design,saved.fabrics),true)

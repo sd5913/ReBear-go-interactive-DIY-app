@@ -52,12 +52,12 @@ uniform sampler2D uFabric;
 // 裁片中心，以及旋转后的两个采样方向。
 uniform vec2 uUvOrigin, uUvX, uUvY;
 
-uniform vec3 uBase;
+uniform vec3 uBase, uHighlight;
 uniform float uTextured, uSelected, uGlow;
 
 void main() {
   if (uGlow > .5) {
-    gl_FragColor = vec4(1., .57, .13, .88);
+    gl_FragColor = vec4(uHighlight, .88);
     return;
   }
   vec2 uv =
@@ -94,7 +94,7 @@ void main() {
   gl_FragColor = vec4(
     mix(
       base * diffuse,
-      vec3(.99, .78, .43),
+      uHighlight,
       .38 * uSelected
     ),
     1.
@@ -392,7 +392,8 @@ function createBear(gl, buffer, options = {}) {
       'uSelected',
       'uCenter',
       'uExpand',
-      'uGlow'
+      'uGlow',
+      'uHighlight'
     ].map(k => [
       k,
       gl.getUniformLocation(program, k)
@@ -405,6 +406,7 @@ function createBear(gl, buffer, options = {}) {
 
   let selected = cushion ? 'cushion_top' : 'head_front';
   let selectedGroup = null;
+  let selectionConfirmed = false;
   let yaw = 0;
   let pitch = cushion ? .65 : 0;
   let preview = null;
@@ -590,6 +592,7 @@ function createBear(gl, buffer, options = {}) {
     gl.uniform4fv(uniform.uOrbit, orbit());
     gl.uniform4fv(uniform.uScale, [...scale(), 0, 0]);
 
+    gl.uniform3fv(uniform.uHighlight,selectionConfirmed?[.28,.72,.46]:[1.,.57,.13]);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(uniform.uFabric, 0);
 
@@ -767,16 +770,28 @@ function createBear(gl, buffer, options = {}) {
       render();
     },
 
-    selectGroup(group) {
+    selectGroup(group, confirmed = false) {
+      selectionConfirmed=Boolean(confirmed);
       selectedGroup=Number.isInteger(group)?group:null;
       selected=null;
       render();
     },
 
-    captureFront(){
+    captureFrontPixels(){
       const state={yaw,pitch,selected,selectedGroup,preview};
       yaw=0;pitch=0;selected=null;selectedGroup=null;preview=null;
-      try{render();return gl.canvas.toDataURL('image/png');}
+      try{
+        render();
+        const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+        if(!width||!height||gl.isContextLost())throw new Error('Preview buffer unavailable');
+        const pixels=new Uint8Array(width*height*4);
+        gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+        if(gl.getError()!==gl.NO_ERROR||!pixels.some((v,i)=>i%4===3&&v>0))throw new Error('Empty preview buffer');
+        // WebGL's origin is bottom-left; ImageData uses top-left.
+        const data=new Uint8ClampedArray(pixels.length),stride=width*4;
+        for(let y=0;y<height;y++)data.set(pixels.subarray((height-1-y)*stride,(height-y)*stride),y*stride);
+        return {width,height,data};
+      }
       finally{yaw=state.yaw;pitch=state.pitch;selected=state.selected;selectedGroup=state.selectedGroup;preview=state.preview;render();}
     },
 

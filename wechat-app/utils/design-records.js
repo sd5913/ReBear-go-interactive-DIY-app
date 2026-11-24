@@ -46,6 +46,7 @@ function saveDesign(name, design, fabrics, id, modelId = 'bear', thumbnail = '')
     createdAt: previous ? previous.createdAt : now,
     updatedAt: now,
     design: normalized,
+    thumbnailVersion: thumbnail ? 2 : 0,
     thumbnail: thumbnail || previous?.thumbnail || (model.id === 'bear' ? '/assets/bear-model.png' : ''),
     // Each saved scheme owns its fabric references, dimensions and measured placement.
     fabrics: clone(fabrics.filter(fabric => used.has(fabric.id)))
@@ -54,6 +55,14 @@ function saveDesign(name, design, fabrics, id, modelId = 'bear', thumbnail = '')
   const updated = previous ? records.map(item => item.id === id ? record : item) : [record, ...records]
   wx.setStorageSync(STORAGE_KEY, updated)
   return record
+}
+
+// Only replace derived artwork when the source design has not changed in the meantime.
+function updateThumbnail(id, thumbnail, updatedAt) {
+  const records=listDesigns(),record=records.find(item=>item.id===id);
+  if(!record||record.updatedAt!==updatedAt)return false;
+  wx.setStorageSync(STORAGE_KEY,records.map(item=>item.id===id?{...item,thumbnail,thumbnailVersion:2}:item));
+  return true;
 }
 
 function deleteDesigns(ids) {
@@ -101,4 +110,4 @@ function displayDate(timestamp) {
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('.')
 }
 
-module.exports = { listDesigns, findDesign, saveDesign, deleteDesigns, isComplete, designView, displayDate }
+module.exports = { updateThumbnail, listDesigns, findDesign, saveDesign, deleteDesigns, isComplete, designView, displayDate }
