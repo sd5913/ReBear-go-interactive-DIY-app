@@ -3,6 +3,7 @@
   "navigationBarBackgroundColor": "#fffbf2",
   "navigationBarTextStyle": "black",
   "usingComponents": {
-    "rb-bear": "/components/rb-bear/rb-bear"
+    "rb-bear": "/components/rb-bear/rb-bear",
+    "bottom-nav": "/components/bottom-nav/index"
   }
 }

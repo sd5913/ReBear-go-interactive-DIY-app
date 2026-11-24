@@ -9,3 +9,4 @@
     "Segoe UI", "Microsoft YaHei", sans-serif;
   font-weight: 600;
 }
+.fabric-page{padding-bottom:calc(330rpx + env(safe-area-inset-bottom))}.bottom.with-nav{bottom:calc(100rpx + env(safe-area-inset-bottom));padding-bottom:22rpx}.selected-card{border-color:#4d3429;box-shadow:0 0 0 3rpx #f4dfb2;background:#4d3429;color:#fffbf2}.selected-card .card-title,.selected-card .dimensions{color:#fffbf2}.selected-card .saved-badge{background:#dae9ed;color:#4d3429}

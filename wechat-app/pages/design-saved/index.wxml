@@ -1,0 +1,7 @@
+<view class="design-page">
+  <block wx:if="{{record}}"><view class="saved-message">✓ {{t.saved}}</view><view class="page-heading">{{t.savedHeading}}</view><view class="muted">{{t.savedHint}}</view>
+  <view class="saved-art paper-card"><view wx:if="{{modelId === 'cushion'}}" class="cushion-art" style="background-image:url('{{thumbnails[2]}}')"><view class="cushion-top" style="background-image:url('{{thumbnails[0]}}')"></view></view><rb-bear wx:else head="{{thumbnails[0]}}" body="{{thumbnails[1]}}" ears="{{thumbnails[2]}}" arms="{{thumbnails[3]}}" legs="{{thumbnails[4]}}"/><view class="scheme-name">{{record.name}}</view></view>
+  <button class="action primary" bindtap="view">{{t.viewScheme}}</button></block>
+  <view wx:else class="muted">{{t.missing}}</view>
+  <button class="action secondary" bindtap="designs">{{t.back}}</button><button class="action plain" bindtap="home">{{t.home}}</button>
+</view>

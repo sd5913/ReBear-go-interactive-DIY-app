@@ -2,9 +2,21 @@
   "pages": [
     "pages/index/index",
     "pages/fabric/fabric",
-    "pages/design/design",
+    "pages/models/index",
     "pages/guide/guide",
-    "pages/measure/measure"
+    "pages/measure/measure",
+    "pages/designs/index",
+    "pages/design-detail/index",
+    "pages/design-saved/index"
+  ],
+  "subPackages": [
+    {
+      "root": "package-design",
+      "name": "design",
+      "pages": [
+        "pages/design/design"
+      ]
+    }
   ],
   "window": {
     "navigationBarTextStyle": "black",

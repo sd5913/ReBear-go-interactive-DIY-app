@@ -1,0 +1,5 @@
+<view class="nav">
+  <view wx:for="{{items}}" wx:key="id" class="nav-item {{active === item.id ? 'active' : ''}}" data-id="{{item.id}}" bindtap="navigate" role="button" aria-label="{{labels[language][index]}}">
+    <text class="nav-icon">{{item.icon}}</text><text>{{labels[language][index]}}</text>
+  </view>
+</view>

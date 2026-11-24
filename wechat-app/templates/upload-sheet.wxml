@@ -1,0 +1,9 @@
+<template name="upload-sheet">
+  <view class="sheet-title">{{t.photoTitle}}</view>
+  <view class="sheet-text">{{t.photoHint}}</view>
+  <button class="dark" data-source="camera" disabled="{{photoBusy}}" bindtap="choosePhoto">{{t.camera}}</button>
+  <button data-source="album" disabled="{{photoBusy}}" bindtap="choosePhoto">{{t.album}}</button>
+  <view wx:if="{{photoBusy}}" class="upload-status">{{language === 'en' ? 'Waiting for your photo…' : '正在选择照片…'}}</view>
+  <button disabled="{{photoBusy}}" bindtap="sample">{{t.sample}}</button>
+  <button bindtap="closeSheet">{{t.cancelSheet}}</button>
+</template>

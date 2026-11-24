@@ -1,23 +1,33 @@
 const faces=[
-  ['head_front','head_back'],
-  ['body_front','body_back'],
-  ['earL_front','earL_back','earR_front','earR_back'],
-  ['armL_upper','armL_lower','armR_upper','armR_lower'],
-  ['legL','legR']
+  ['head_front'],
+  ['body_front'],
+  ['earL_front','earR_front'],
+  ['armL_upper','armR_upper'],
 ];
 
 const armLabels={
-  zh:['左臂上片','左臂下片','右臂上片','右臂下片'],
-  en:['Left arm upper','Left arm lower','Right arm upper','Right arm lower']
+  zh:['左臂','右臂'],
+  en:['Left arm','Right arm']
 };
 
 function migrateDesign(design){
-  const arm=design[3];
-  if(!arm||!Array.isArray(arm.pieces)||arm.layoutVersion===2)return design;
-  const otherArm=arm.pieces.filter(p=>p.index===0||p.index===1).map(p=>({
-    ...p,index:p.index+2,label:String.fromCharCode(67+p.index),x:p.x+32,y:p.y+20
-  }));
-  return {...design,3:{...arm,layoutVersion:2,pieces:[...arm.pieces,...otherArm]}};
+  if(!design)return design;
+  const next={...design};
+  if(next.__layoutVersion===3)return next;
+  const legacy=Boolean(next[4] || [0,1].some(i=>next[i]?.pieces?.some(p=>p.index>0)) ||
+    [2,3].some(i=>next[i]?.pieces?.some(p=>p.index>=2)));
+  if(legacy){
+    [0,1,2,3].forEach(part=>{
+      const record=next[part];
+      if(!record||!Array.isArray(record.pieces))return;
+      const indexes=part<2?[0]:[0,2];
+      next[part]={...record,confirmed:false,pieces:record.pieces.filter(p=>indexes.includes(p.index))
+        .map(p=>({...p,index:indexes.indexOf(p.index),label:String.fromCharCode(65+indexes.indexOf(p.index))}))};
+    });
+    delete next[4];
+  }
+  next.__layoutVersion=3;
+  return next;
 }
 
 module.exports={faces,armLabels,migrateDesign};

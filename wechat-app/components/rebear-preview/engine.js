@@ -5,6 +5,8 @@ attribute vec3 aPos, aNormal;
 attribute vec2 aUV;
 
 uniform vec4 uOrbit, uScale;
+uniform vec3 uCenter;
+uniform float uExpand;
 
 varying vec3 vNormal;
 varying vec2 vUV;
@@ -24,7 +26,8 @@ vec3 rotate(vec3 p) {
 }
 
 void main() {
-  vec3 q = rotate(aPos - vec3(0., .91, 0.));
+  vec3 expanded = uCenter + (aPos - uCenter) * uExpand;
+  vec3 q = rotate(expanded - vec3(0., .91, 0.));
 
   gl_Position = vec4(
     q.x * uScale.x,
@@ -49,10 +52,14 @@ uniform sampler2D uFabric;
 // 裁片中心，以及旋转后的两个采样方向。
 uniform vec2 uUvOrigin, uUvX, uUvY;
 
-uniform vec3 uBase;
-uniform float uTextured, uSelected;
+uniform vec3 uBase, uHighlight;
+uniform float uTextured, uSelected, uGlow;
 
 void main() {
+  if (uGlow > .5) {
+    gl_FragColor = vec4(uHighlight, .88);
+    return;
+  }
   vec2 uv =
     uUvOrigin +
     uUvX * (vUV.x - .5) +
@@ -87,15 +94,15 @@ void main() {
   gl_FragColor = vec4(
     mix(
       base * diffuse,
-      vec3(.99, .78, .43),
-      .17 * uSelected
+      uHighlight,
+      .38 * uSelected
     ),
     1.
   );
 }
 `;
 
-// 读取项目中现有的 Rebear GLB 模板。
+// Read the supplied bear GLB by named nodes and retain each node's UV layout.
 function readBear(arrayBuffer) {
   const header = new DataView(arrayBuffer);
 
@@ -115,36 +122,172 @@ function readBear(arrayBuffer) {
     )
   );
 
+  const binOffset = 28 + jsonLength;
   function attribute(index) {
     const a = doc.accessors[index];
     const view = doc.bufferViews[a.bufferView];
-    const width = {
-      VEC3: 3,
-      VEC2: 2
-    }[a.type];
-
-    return new Float32Array(
-      arrayBuffer,
-      28 + jsonLength + (view.byteOffset || 0) + (a.byteOffset || 0),
-      a.count * width
-    );
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[a.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[a.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[a.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported bear GLB attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (a.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(a.count * width);
+    for (let i=0;i<a.count;i++) for(let k=0;k<width;k++) values[i*width+k]=header[read](offset+i*stride+k*bytes,true);
+    return values;
   }
 
-  return doc.meshes[0].primitives.map(({ attributes, material }) => {
-    const m = doc.materials[material];
-
-    return {
-      ...m.extras,
-
-      base: m.pbrMetallicRoughness.baseColorFactor
-        .slice(0, 3)
-        .map(c => 1.055 * c ** (1 / 2.4) - .055),
-
-      pos: attribute(attributes.POSITION),
-      normal: attribute(attributes.NORMAL),
-      uv: attribute(attributes.TEXCOORD_0)
-    };
+  const defs = {
+    head: ['head_front', null, 0], body: ['body_front', null, 1],
+    'left-ears': ['earL_front', null, 2], 'right-ears': ['earR_front', null, 2],
+    'left-arm': ['armL_upper', null, 3], 'right-arm': ['armR_upper', null, 3]
+  };
+  const parts = [];
+  function transform(node, x, y, z) {
+    const s=node.scale||[1,1,1], q=node.rotation||[0,0,0,1], t=node.translation||[0,0,0];
+    x*=s[0]; y*=s[1]; z*=s[2];
+    const qx=q[0], qy=q[1], qz=q[2], qw=q[3];
+    const ix=qw*x+qy*z-qz*y, iy=qw*y+qz*x-qx*z, iz=qw*z+qx*y-qy*x, iw=-qx*x-qy*y-qz*z;
+    return [ix*qw+iw*-qx+iy*-qz-iz*-qy+t[0],iy*qw+iw*-qy+iz*-qx-ix*-qz+t[1],iz*qw+iw*-qz+ix*-qy-iy*-qx+t[2]];
+  }
+  for (const node of doc.nodes || []) {
+    const def = defs[node.name];
+    if (!def || node.mesh === undefined) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) continue;
+      if (primitive.attributes.NORMAL === undefined || primitive.attributes.TEXCOORD_0 === undefined) continue;
+      const pos = attribute(primitive.attributes.POSITION), normal = attribute(primitive.attributes.NORMAL), uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined ? Array.from({length: pos.length / 3}, (_, i) => i) : Array.from(attribute(primitive.indices));
+      const groups = new Map();
+      indices.forEach((index, i) => {
+        const face = i < indices.length / 2 ? 0 : 1;
+        if (!groups.has(face)) groups.set(face, []);
+        groups.get(face).push(index);
+      });
+      const sideCount = def[1] ? 2 : 1;
+      for (let side = 0; side < sideCount; side++) {
+        const tris = indices;
+        const verts = tris.flatMap(i => transform(node,pos[i*3],pos[i*3+1],pos[i*3+2]));
+        const norms = tris.flatMap(i => transform(node,normal[i*3],normal[i*3+1],normal[i*3+2]));
+        const tex = tris.flatMap(i => [uv[i*2],uv[i*2+1]]);
+        const id = def[2] === 3 ? (node.name === 'left-arm' ? 'armL_upper' : 'armR_upper') : def[2] === 2 ? (node.name === 'left-ears' ? 'earL_front' : 'earR_front') : def[side];
+        const bounds=[Infinity,Infinity,-Infinity,-Infinity];
+        for(let i=0;i<tex.length;i+=2){bounds[0]=Math.min(bounds[0],tex[i]);bounds[1]=Math.min(bounds[1],tex[i+1]);bounds[2]=Math.max(bounds[2],tex[i]);bounds[3]=Math.max(bounds[3],tex[i+1]);}
+        const uvWidth=bounds[2]-bounds[0]||1, uvHeight=bounds[3]-bounds[1]||1;
+        for(let i=0;i<tex.length;i+=2){tex[i]=(tex[i]-bounds[0])/uvWidth;tex[i+1]=(tex[i+1]-bounds[1])/uvHeight;}
+        parts.push({id, group:def[2], label:def[2]===0?'头部':def[2]===1?'身体':def[2]===2?'耳朵':'手臂', side:side?'back':'front', base:[.72,.48,.32], pos:new Float32Array(verts), normal:new Float32Array(norms), uv:new Float32Array(tex), mask:'/assets/bear-material/'+node.name+'.png'});
+      }
+    }
+  }
+  if (!parts.length) throw new Error('Bear GLB has no supported named parts');
+  const min=[Infinity,Infinity,Infinity], max=[-Infinity,-Infinity,-Infinity];
+  parts.forEach(p=>p.pos.forEach((v,i)=>{const a=i%3;min[a]=Math.min(min[a],v);max[a]=Math.max(max[a],v);}));
+  const center=min.map((v,i)=>(v+max[i])/2), scale=1.18/Math.max(...max.map((v,i)=>v-min[i]));
+  parts.forEach(p=>{
+    p.pos.forEach((v,i)=>{const a=i%3;p.pos[i]=(v-center[a])*scale+(a===1?.91:0);});
+    const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
+    p.pos.forEach((v,i)=>{const a=i%3;lo[a]=Math.min(lo[a],v);hi[a]=Math.max(hi[a],v);});
+    p.center=lo.map((v,i)=>(v+hi[i])/2);
   });
+  return parts;
+}
+
+// The supplied cushion has indexed meshes named top / bottom / loop.
+// Its loop contains two disconnected UV panels, giving four editable pieces.
+function readCushion(arrayBuffer) {
+  const header = new DataView(arrayBuffer);
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2) {
+    throw new Error('Invalid cushion GLB');
+  }
+  const jsonLength = header.getUint32(12, true);
+  const encoded = new Uint8Array(arrayBuffer, 20, jsonLength);
+  const doc = JSON.parse(decodeURIComponent(Array.from(encoded, b => '%' + b.toString(16).padStart(2, '0')).join('')));
+  const binOffset = 28 + jsonLength;
+
+  function attribute(index) {
+    const accessor = doc.accessors[index];
+    const view = doc.bufferViews[accessor.bufferView];
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[accessor.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[accessor.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[accessor.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported cushion attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (accessor.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(accessor.count * width);
+    for (let i = 0; i < accessor.count; i++) {
+      for (let axis = 0; axis < width; axis++) values[i * width + axis] = header[read](offset + i * stride + axis * bytes, true);
+    }
+    return values;
+  }
+
+  const definitions = {
+    top: { ids: ['cushion_top'], group: 0, label: '上面' },
+    bottom: { ids: ['cushion_bottom'], group: 1, label: '下面' },
+    loop: { ids: ['cushion_side_a', 'cushion_side_b'], group: 2, label: '侧围' }
+  };
+  const parts = [];
+  for (const node of doc.nodes) {
+    const definition = definitions[node.name];
+    if (!definition) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) throw new Error('Cushion must use triangles');
+      const pos = attribute(primitive.attributes.POSITION);
+      const normal = attribute(primitive.attributes.NORMAL);
+      const uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined ? Array.from({ length: pos.length / 3 }, (_, i) => i) : Array.from(attribute(primitive.indices));
+      const parent = Array.from({ length: pos.length / 3 }, (_, i) => i);
+      function root(i) {
+        while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+        return i;
+      }
+      for (let i = 0; i < indices.length; i += 3) {
+        const a = root(indices[i]);
+        parent[root(indices[i + 1])] = a;
+        parent[root(indices[i + 2])] = a;
+      }
+      const components = new Map();
+      for (let i = 0; i < indices.length; i += 3) {
+        const key = root(indices[i]);
+        if (!components.has(key)) components.set(key, []);
+        components.get(key).push(...indices.slice(i, i + 3));
+      }
+      const panels = [...components.values()].sort((a, b) => Math.min(...a) - Math.min(...b));
+      if (panels.length !== definition.ids.length) throw new Error('Unexpected cushion panels');
+      panels.forEach((panel, index) => {
+        const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+        panel.forEach(i => {
+          bounds[0] = Math.min(bounds[0], uv[i * 2]);
+          bounds[1] = Math.min(bounds[1], uv[i * 2 + 1]);
+          bounds[2] = Math.max(bounds[2], uv[i * 2]);
+          bounds[3] = Math.max(bounds[3], uv[i * 2 + 1]);
+        });
+        parts.push({
+          id: definition.ids[index], group: definition.group, label: definition.label,
+          base: [.83, .76, .65],
+          pos: new Float32Array(panel.flatMap(i => Array.from(pos.slice(i * 3, i * 3 + 3)))),
+          normal: new Float32Array(panel.flatMap(i => Array.from(normal.slice(i * 3, i * 3 + 3)))),
+          uv: new Float32Array(panel.flatMap(i => {
+            const u = (uv[i * 2] - bounds[0]) / (bounds[2] - bounds[0]);
+            const v = (uv[i * 2 + 1] - bounds[1]) / (bounds[3] - bounds[1]);
+            // Side panels are vertical in the source UV, horizontal in the tray.
+            return node.name === 'loop' ? [v, 1 - u] : [u, v];
+          }))
+        });
+      });
+    }
+  }
+  if (parts.length !== 4) throw new Error('Incomplete cushion model');
+  const minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    minimum[i % 3] = Math.min(minimum[i % 3], value);
+    maximum[i % 3] = Math.max(maximum[i % 3], value);
+  }));
+  const center = minimum.map((value, axis) => (value + maximum[axis]) / 2);
+  const scale = 1.18 / Math.max(...maximum.map((value, axis) => value - minimum[axis]));
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    part.pos[i] = (value - center[i % 3]) * scale + (i % 3 === 1 ? .91 : 0);
+  }));
+  return parts;
 }
 
 const fabrics = [
@@ -190,8 +333,20 @@ const fabrics = [
   }
 ];
 
-function createBear(gl, buffer) {
-  const parts = readBear(buffer);
+function createBear(gl, buffer, options = {}) {
+  const cushion = options.modelId === 'cushion';
+  const transparentBackground = Boolean(options.transparentBackground);
+  const parts = cushion ? readCushion(buffer) : readBear(buffer);
+  // Center the actual mesh, then fit all eight box corners to the current orbit.
+  const minimum=[Infinity,Infinity,Infinity],maximum=[-Infinity,-Infinity,-Infinity];
+  parts.forEach(part=>part.pos.forEach((value,i)=>{
+    minimum[i%3]=Math.min(minimum[i%3],value);maximum[i%3]=Math.max(maximum[i%3],value);
+  }));
+  const center=minimum.map((v,i)=>(v+maximum[i])/2);
+  parts.forEach(part=>part.pos.forEach((value,i)=>{part.pos[i]=value-center[i%3]+(i%3===1?.91:0);}));
+  const half=minimum.map((v,i)=>(maximum[i]-v)/2);
+  const corners=[];
+  for(const x of [-half[0],half[0]])for(const y of [-half[1],half[1]])for(const z of [-half[2],half[2]])corners.push([x,y,z]);
   const program = gl.createProgram();
 
   for (const [type, source] of [
@@ -234,7 +389,11 @@ function createBear(gl, buffer) {
       'uUvY',
       'uBase',
       'uTextured',
-      'uSelected'
+      'uSelected',
+      'uCenter',
+      'uExpand',
+      'uGlow',
+      'uHighlight'
     ].map(k => [
       k,
       gl.getUniformLocation(program, k)
@@ -245,9 +404,11 @@ function createBear(gl, buffer) {
   const assignments = new Map();
   const adjustable = parts.filter(p => !p.fixed);
 
-  let selected = 'head_front';
+  let selected = cushion ? 'cushion_top' : 'head_front';
+  let selectedGroup = null;
+  let selectionConfirmed = false;
   let yaw = 0;
-  let pitch = 0;
+  let pitch = cushion ? .65 : 0;
   let preview = null;
 
   for (const p of parts) {
@@ -403,14 +564,15 @@ function createBear(gl, buffer) {
   }
 
   function scale() {
-    const width = gl.drawingBufferWidth;
-    const height = gl.drawingBufferHeight;
-    const s = Math.min(width / 1.43, height / 2.15);
-
-    return [
-      2 * s / width,
-      2 * s / height
-    ];
+    const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+    const [cy,sy,cp,sp]=orbit();
+    let extentX=1e-4,extentY=1e-4;
+    for(const [x,y,z] of corners){
+      extentX=Math.max(extentX,Math.abs(cy*x-sy*z));
+      extentY=Math.max(extentY,Math.abs(cp*y-sp*(sy*x+cy*z)));
+    }
+    const fit=Math.min(width*.86/(2*extentX),height*.86/(2*extentY));
+    return [2*fit/width,2*fit/height];
   }
 
   function render() {
@@ -421,7 +583,8 @@ function createBear(gl, buffer) {
       gl.drawingBufferHeight
     );
 
-    gl.clearColor(.968, .950, .917, 1);
+    if (transparentBackground) gl.clearColor(0, 0, 0, 0);
+    else gl.clearColor(.968, .950, .917, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.enable(gl.DEPTH_TEST);
     gl.useProgram(program);
@@ -429,6 +592,7 @@ function createBear(gl, buffer) {
     gl.uniform4fv(uniform.uOrbit, orbit());
     gl.uniform4fv(uniform.uScale, [...scale(), 0, 0]);
 
+    gl.uniform3fv(uniform.uHighlight,selectionConfirmed?[.28,.72,.46]:[1.,.57,.13]);
     gl.activeTexture(gl.TEXTURE0);
     gl.uniform1i(uniform.uFabric, 0);
 
@@ -465,6 +629,22 @@ function createBear(gl, buffer) {
 
       const tex = material || textures.get('empty');
 
+      const isSelected=(selectedGroup!==null&&p.group===selectedGroup)||p.id===(preview?.part.id||selected);
+      gl.uniform3fv(uniform.uCenter,p.center);
+      if(isSelected){
+        gl.uniform1f(uniform.uSelected,1);
+        gl.uniform1f(uniform.uExpand,1.055);
+        gl.uniform1f(uniform.uGlow,1);
+        gl.depthMask(false);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+        gl.drawArrays(gl.TRIANGLES,0,p.pos.length/3);
+        gl.disable(gl.BLEND);
+        gl.depthMask(true);
+      }
+      gl.uniform1f(uniform.uExpand,1);
+      gl.uniform1f(uniform.uGlow,0);
+
       gl.bindTexture(gl.TEXTURE_2D, tex.handle);
 
       gl.uniform2fv(
@@ -485,10 +665,7 @@ function createBear(gl, buffer) {
       gl.uniform3fv(uniform.uBase, p.base);
       gl.uniform1f(uniform.uTextured, material ? 1 : 0);
 
-      gl.uniform1f(
-        uniform.uSelected,
-        p.id === (preview?.part.id || selected) ? 1 : 0
-      );
+      gl.uniform1f(uniform.uSelected,isSelected?1:0);
 
       gl.drawArrays(
         gl.TRIANGLES,
@@ -572,23 +749,50 @@ function createBear(gl, buffer) {
 
     rotate(dx, dy) {
       yaw += dx * .012;
+      const limit = cushion ? Math.PI : .85;
       pitch = Math.max(
-        -.85,
-        Math.min(.85, pitch + dy * .01)
+        -limit,
+        Math.min(limit, pitch + dy * .01)
       );
 
       render();
     },
 
     show(side) {
-      yaw = side === 'back' ? Math.PI : 0;
-      pitch = 0;
+      yaw = !cushion && side === 'back' ? Math.PI : 0;
+      pitch = cushion ? (side === 'back' ? -Math.PI / 2 : Math.PI / 2) : 0;
       render();
     },
 
     select(id) {
       selected = id;
+      selectedGroup = null;
       render();
+    },
+
+    selectGroup(group, confirmed = false) {
+      selectionConfirmed=Boolean(confirmed);
+      selectedGroup=Number.isInteger(group)?group:null;
+      selected=null;
+      render();
+    },
+
+    captureFrontPixels(){
+      const state={yaw,pitch,selected,selectedGroup,preview};
+      yaw=0;pitch=0;selected=null;selectedGroup=null;preview=null;
+      try{
+        render();
+        const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
+        if(!width||!height||gl.isContextLost())throw new Error('Preview buffer unavailable');
+        const pixels=new Uint8Array(width*height*4);
+        gl.readPixels(0,0,width,height,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+        if(gl.getError()!==gl.NO_ERROR||!pixels.some((v,i)=>i%4===3&&v>0))throw new Error('Empty preview buffer');
+        // WebGL's origin is bottom-left; ImageData uses top-left.
+        const data=new Uint8ClampedArray(pixels.length),stride=width*4;
+        for(let y=0;y<height;y++)data.set(pixels.subarray((height-1-y)*stride,(height-y)*stride),y*stride);
+        return {width,height,data};
+      }
+      finally{yaw=state.yaw;pitch=state.pitch;selected=state.selected;selectedGroup=state.selectedGroup;preview=state.preview;render();}
     },
 
     preview(id, part, both = false) {
@@ -625,6 +829,7 @@ function createBear(gl, buffer) {
 
       preview = null;
       selected = part;
+      selectedGroup = null;
 
       render();
       return true;
@@ -681,12 +886,14 @@ if (typeof module === 'object') {
   module.exports = {
     createBear,
     readBear,
+    readCushion,
     fabrics
   };
 } else {
   globalThis.Rebear = {
     createBear,
     readBear,
+    readCushion,
     fabrics
   };
 }

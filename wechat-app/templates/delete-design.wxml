@@ -1,0 +1,10 @@
+<template name="delete-design">
+  <view class="dialog-mask" bindtap="closeDelete">
+    <view class="dialog" catchtap="stop">
+      <view class="dialog-title">{{t.deleteTitle}}</view>
+      <view class="muted">{{t.deleteHint}}</view>
+      <button class="action primary" bindtap="confirmDelete">{{t.confirmDelete}}</button>
+      <button class="action secondary" bindtap="closeDelete">{{t.cancel}}</button>
+    </view>
+  </view>
+</template>

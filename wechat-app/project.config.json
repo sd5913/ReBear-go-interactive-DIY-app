@@ -1,6 +1,6 @@
 {
   "compileType": "miniprogram",
-  "libVersion": "trial",
+  "libVersion": "3.18.0",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -36,7 +36,7 @@
     "tabIndent": "auto",
     "tabSize": 2
   },
-  "appid": "wxcf62d5d9b23a93e3",
+  "appid": "wx6c9981a5308e5cda",
   "simulatorPluginLibVersion": {},
   "projectname": "ReBear 新版 UI"
 }

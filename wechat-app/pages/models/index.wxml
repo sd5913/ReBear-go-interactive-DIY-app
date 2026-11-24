@@ -1,0 +1,14 @@
+<view class="design-page with-nav model-page">
+  <view class="steps"><view wx:for="{{t.steps}}" wx:key="*this" class="step-pill {{index === 1 ? 'current' : ''}}">{{item}}</view></view>
+  <view class="page-heading">{{t.heading}}</view>
+  <view class="muted">{{t.hint}}</view>
+  <view class="model-list">
+    <view wx:for="{{models}}" wx:key="id" class="model-card paper-card {{selectedId === item.id ? 'selected-model' : ''}}" data-id="{{item.id}}" bindtap="select" role="button" aria-label="{{item.name}}" aria-pressed="{{selectedId === item.id}}">
+      <image class="model-thumb" src="{{item.thumbnail}}" mode="aspectFit"/>
+      <view class="model-info"><view class="model-name">{{item.name}}</view><view class="muted">{{item.count}}{{t.pieces}} · {{t.difficulty}}{{item.difficulty}}</view><view wx:if="{{selectedId === item.id}}" class="model-selected">✓ {{t.selected}}</view></view>
+      <view class="model-radio {{selectedId === item.id ? 'checked' : ''}}">{{selectedId === item.id ? '✓' : ''}}</view>
+    </view>
+  </view>
+  <button class="action primary start-design" disabled="{{!selectedId || opening}}" loading="{{opening}}" bindtap="start">{{t.start}}</button>
+</view>
+<bottom-nav active="fabric" language="{{language}}" bind:upload="fabrics"/>
