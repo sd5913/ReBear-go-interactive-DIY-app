@@ -164,3 +164,56 @@ test('saved invalid placements are refused even if old confirmation flags remain
   global.wx = {getStorageSync:()=>[]}
   assert.throws(()=>saveDesign('invalid',design,fabrics),/Incomplete/)
 })
+
+test('semi-transparent pattern interiors are occupied fabric, not transparent holes', () => {
+  const masks = require('../wechat-app/utils/pattern-masks')
+  for (const [name, strips] of Object.entries(masks)) {
+    const area = strips.reduce((sum, p) => sum + (p[1][0]-p[0][0])*(p[2][1]-p[1][1]), 0)
+    assert.ok(area > .4, name + ' must include the translucent interior')
+  }
+})
+test('slightly offset ear interiors collide even when their wireframe strokes miss', () => {
+  const design = {__sizeScale:1,2:{confirmed:true,pieces:[piece(0,50,50),piece(1,52,52)]}}
+  const result=validatePlacements(design,fabrics,layout)
+  assert.equal(result.parts[2].errors[0].invalid,true)
+  assert.deepEqual(result.parts[2].errors[1].overlaps,[{part:2,index:0}])
+  assert.deepEqual(validatePlacements(normalize(design),fabrics),result)
+  design[2].pieces[1].x=200
+  assert.equal(validatePlacements(design,fabrics,layout).parts[2].valid,true)
+})
+test('overlap during drag disables confirm and save, marks ghosts, then clears when moved away', () => {
+  const {p,notices}=page(completeDraft())
+  p.loadPart(2)
+  p.updatePieces([piece(0,50,50),piece(1,52,52)],1,2)
+  assert.equal(p.data.canConfirm,false)
+  assert.match(p.data.currentIssue,/重叠/)
+  assert.equal(p.data.allDone,false)
+  p.confirm()
+  assert.equal(p.design[2].confirmed,false)
+  assert.ok(notices.at(-1).includes('标红'))
+  p.openSave()
+  assert.equal(p.data.saveDialog,false)
+  p.loadPart(3)
+  assert.ok(p.data.placedGhosts.filter(g=>g.part===2).every(g=>g.invalid))
+  p.updatePieces([piece(0,50,500),piece(1,250,500)],1,2)
+  assert.equal(p.data.canConfirm,true)
+})
+
+test('transparent wrapper margins and different fabrics do not report false overlaps', () => {
+  const design={2:{pieces:[piece(0,50,50),piece(1,50,100)]}}
+  assert.equal(validatePlacements(design,fabrics,layout).parts[2].valid,true)
+  design[2].pieces[1]=piece(1,52,52,'other')
+  assert.equal(validatePlacements(design,[...fabrics,{...fabrics[0],id:'other'}],layout).parts[2].valid,true)
+})
+test('filled overlap survives rotation, global scale, fabric aspect ratio and normalization', () => {
+  for (const scale of [.5,1,2.5]) for (const angle of [0,45,90]) {
+    const design={__sizeScale:scale,2:{confirmed:true,pieces:[piece(0,80,80),piece(1,82,82)]}}
+    design[2].pieces.forEach(p=>{p.angle=angle})
+    for(const size of [{width:400,height:600},{width:600,height:400}]) {
+      const scene={...layout,fabricSizes:{cloth:size}}
+      const result=validatePlacements(design,fabrics,scene)
+      assert.ok(result.parts[2].errors[0].overlaps.length,JSON.stringify({scale,angle,size}))
+      assert.deepEqual(validatePlacements(normalize(design,scene),fabrics),result)
+    }
+  }
+})
