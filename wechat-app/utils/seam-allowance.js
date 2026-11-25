@@ -5,6 +5,8 @@ const UNITS_PER_CM = 1000
 const SEAM_ALLOWANCE_CM = 1
 const MASK_UNITS = 96000
 const masks = require('./pattern-masks')
+const rabbitMasks = require('./rabbit-pattern-masks')
+const catMasks = require('./cat-pattern-masks')
 const contours = new Map()
 const offsets = new Map()
 
@@ -19,7 +21,9 @@ function clip(subject, operation, other = []) {
 
 function maskContours(name) {
   if (!contours.has(name)) {
-    const strips = masks[name].map(strip => strip.map(([x, y]) => ({
+    const source = masks[name] || rabbitMasks[name] || catMasks[name]
+    if (!source) throw new Error('Unknown pattern mask: ' + name)
+    const strips = source.map(strip => strip.map(([x, y]) => ({
       X: Math.round((x - .5) * MASK_UNITS),
       Y: Math.round((y - .5) * MASK_UNITS)
     })))

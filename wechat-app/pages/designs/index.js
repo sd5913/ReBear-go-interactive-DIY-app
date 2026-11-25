@@ -21,7 +21,7 @@ Page({
         return {
           id: record.id, name: record.name, date: displayDate(record.updatedAt),
           modelId: model.id, modelName: model.names[this.data.language],
-          thumbnail: record.thumbnailVersion===2&&!this.failedThumbnails?.has(record.id)?record.thumbnail:'',
+          thumbnail: record.thumbnailVersion===2&&!this.failedThumbnails?.has(record.id)?record.thumbnail:model.thumbnail,
           thumbnails: designView(record.design, record.fabrics, model.parts[this.data.language], this.data.t.fabric, model.id).thumbnails,
           selected: this.data.selectedIds.includes(record.id)
         }
@@ -40,14 +40,14 @@ Page({
   },
   repairNextThumbnail(){
     if(this.closed||this.repairActive)return;
-    const record=listDesigns().find(item=>getModel(item.modelId).id==='bear'&&
+    const record=listDesigns().find(item=>
       (item.thumbnailVersion!==2||!item.thumbnail||this.failedThumbnails.has(item.id))&&!this.thumbnailAttempts.has(item.id));
     if(!record){this.setData({repairItems:[]});return;}
     this.thumbnailAttempts.add(record.id);
     this.repairActive=record;
     const model=getModel(record.modelId);
     const view=designView(record.design,record.fabrics,model.parts[this.data.language],this.data.t.fabric,model.id);
-    this.setData({repairItems:[{id:record.id,fabrics:record.fabrics,assignments:view.assignments}]});
+    this.setData({repairItems:[{id:record.id,modelId:model.id,fabrics:record.fabrics,assignments:view.assignments}]});
   },
   skipThumbnailRepair(event){
     if(this.repairActive?.id!==event.currentTarget.dataset.id)return;

@@ -7,7 +7,7 @@
   </view>
   <block wx:if="{{record}}">
     <view class="guide-intro">
-      <view class="eyebrow">MAKE YOUR BEAR</view>
+      <view class="eyebrow">{{brandText}}</view>
       <view class="guide-heading">{{t.heading}}</view>
       <view class="guide-subtitle">{{t.subtitle}}</view>
       <view class="progress-row"><view class="progress-track"><view class="progress-fill" style="width:{{progress}}%"></view></view><view class="progress-count">{{number}} / 05</view></view>
@@ -32,7 +32,26 @@
 <view wx:if="{{selectedMaterial}}" class="material-mask" bindtap="closeMaterial">
   <view class="material-dialog" catchtap="stop">
     <view class="modal-heading"><text>{{t.modalTitle}}</text><button class="close-button" bindtap="closeMaterial" aria-label="{{t.close}}"><image src="/package-sewing/assets/close.svg" style="width:19rpx;height:20rpx"/></button></view>
-    <view class="modal-preview"><rebear-preview model-id="{{modelId}}" read-only="{{true}}" immersive="{{true}}" height-rpx="{{610}}" fabrics="{{record.fabrics}}" assignments="{{assignments}}" language="{{language}}"/></view>
+    <view class="modal-preview">
+      <view class="modal-fabric-board" style="width:{{boardWidth}}rpx;height:{{boardHeight}}rpx">
+        <image class="modal-fabric-image" src="{{selectedMaterial.image}}" mode="scaleToFill" />
+        <view
+          wx:for="{{selectedPieces}}"
+          wx:key="id"
+          class="modal-piece"
+          style="left:{{item.centerX}}rpx;top:{{item.centerY}}rpx;width:{{item.width}}rpx;height:{{item.height}}rpx;transform:translate(-50%,-50%) rotate({{item.angle}}deg)"
+        >
+          <image class="modal-piece-mask" src="{{item.mask}}" mode="aspectFit" />
+        </view>
+        <view
+          wx:for="{{selectedPieces}}"
+          wx:key="id"
+          class="modal-piece-label"
+          style="left:{{item.centerX}}rpx;top:{{item.centerY}}rpx"
+        >{{item.label}}</view>
+        <canvas type="2d" id="material-seam-canvas" class="modal-seam-canvas" />
+      </view>
+    </view>
     <view class="selected-fabric">{{selectedMaterial.displayName}} · {{selectedMaterial.parts}}</view>
   </view>
 </view>

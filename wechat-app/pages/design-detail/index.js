@@ -1,10 +1,10 @@
 const copy = require('../../utils/design-copy')
 const { getLanguage } = require('../../utils/i18n')
-const { findDesign, designView, deleteDesigns, displayDate } = require('../../utils/design-records')
+const { findDesign, designView, displayDate } = require('../../utils/design-records')
 const { getModel } = require('../../utils/model-catalog')
 
 Page({
-  data: { t: copy.zh, language: 'zh', record: null, rows: [], materials: [], assignments: {}, deleteIds: [], error: '' },
+  data: { t: copy.zh, language: 'zh', record: null, rows: [], materials: [], assignments: {}, error: '' },
   onLoad(options) { this.id = options.id },
   onShow() {
     const language = getLanguage()
@@ -18,12 +18,6 @@ Page({
     } catch (_) { this.setData({ t, language, record: null, error: t.missing }) }
   },
   guide() { wx.navigateTo({ url: '/package-sewing/pages/guide/index?id=' + encodeURIComponent(this.id) }) },
-  remove() { this.setData({ deleteIds: [this.id] }) },
-  closeDelete() { this.setData({ deleteIds: [] }) },
-  confirmDelete() {
-    try { deleteDesigns([this.id]); this.back() }
-    catch (_) { wx.showToast({ title: this.data.t.saveError, icon: 'none' }) }
-  },
   back() { wx.reLaunch({ url: '/pages/designs/index' }) },
   stop() {}
 })

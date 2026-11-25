@@ -2,8 +2,8 @@ const { getLanguage } = require('../../utils/i18n')
 const { models, getModel, activeModelId } = require('../../utils/model-catalog')
 
 const copy = {
-  zh: { title: '拼布设计', steps: ['01 准备布料', '02 拼布设计', '03 制作指南'], heading: '选一个来设计', hint: '选择模型，进行下一步设计。', pieces: '个裁片', difficulty: '难度', start: '选模型，开始设计', selected: '已选择', missing: '请先回布料库选择布料', error: '暂时无法打开，请重试' },
-  en: { title: 'Patchwork Design', steps: ['01 Fabric', '02 Patchwork', '03 Guide'], heading: 'Choose a model', hint: 'Select a model to start designing.', pieces: ' pieces', difficulty: 'Difficulty ', start: 'Design with This Model', selected: 'Selected', missing: 'Choose a fabric in your library first', error: 'Could not open the design. Try again.' }
+  zh: { title: '拼布设计', prompt: '选择你想缝纫的玩偶吧！', pieces: '个裁片', difficulty: '难度', start: '选模型，开始设计', selected: '已选择', missing: '请先回布料库选择布料', error: '暂时无法打开，请重试' },
+  en: { title: 'Patchwork Design', prompt: 'Choose a doll you’d like to sew!', pieces: ' pieces', difficulty: 'Difficulty ', start: 'Design with This Model', selected: 'Selected', missing: 'Choose a fabric in your library first', error: 'Could not open the design. Try again.' }
 }
 
 Page({

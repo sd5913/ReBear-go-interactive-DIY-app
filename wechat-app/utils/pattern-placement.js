@@ -10,12 +10,13 @@ function texturePlacement(piece, layout) {
   const cos = Math.cos(angle)
   const sin = Math.sin(angle)
   const scale = layout.pieceScales && layout.pieceScales[piece.index] || [1, 1]
-  const pieceWidth = layout.pieceWidth * scale[0]
-  const pieceHeight = layout.pieceHeight * scale[1]
+  const slotSize = layout.pieceSlotSizes && layout.pieceSlotSizes[piece.index]
+  const pieceWidth = (slotSize ? slotSize[0] : layout.pieceWidth) * scale[0]
+  const pieceHeight = (slotSize ? slotSize[1] : layout.pieceHeight) * scale[1]
   let width = pieceWidth - 2 * layout.padding * scale[0]
   let height = pieceHeight - 2 * layout.padding * scale[1]
   // Bear mask PNGs are square and displayed using aspectFit.
-  if (layout.pieceScales) width = height = Math.min(width, height)
+  if (layout.squareMaskFit) width = height = Math.min(width, height)
   return {
     fabricId: piece.fabricId,
     pixelSize: [1/layout.width, 1/layout.height],
@@ -27,7 +28,16 @@ function texturePlacement(piece, layout) {
 }
 
 function shapeFor(part, modelId, slot) {
-  if (modelId !== 'bear') return part === 2 ? 'rectangle' : 'circle'
+  if (modelId === 'cat') return [
+    ['cat_head_front', 'cat_head_back'],
+    ['cat_body_front', 'cat_body_back']
+  ][part]?.[slot] || 'circle'
+  if (modelId === 'rabbit') return [
+    ['rabbit_head_front', 'rabbit_head_back'],
+    ['rabbit_body_front', 'rabbit_body_back'],
+    ['rabbit_left_ear_front', 'rabbit_left_ear_back', 'rabbit_right_ear_front', 'rabbit_right_ear_back']
+  ][part]?.[slot] || 'circle'
+  if (modelId === 'cushion') return part === 2 ? 'rectangle' : 'circle'
   if (part === 0) return 'head'
   if (part === 1) return 'body'
   if (part === 2) return slot === 0 ? 'left-ears' : 'right-ears'
@@ -59,6 +69,12 @@ function pieceOutline(part, placement, modelId = 'bear', slot = 0) {
     x: origin[0] + p.x * axisX[0] + p.y * axisY[0],
     y: origin[1] + p.x * axisX[1] + p.y * axisY[1]
   }))
+}
+
+function pieceSeams(part, placement, dimensions, modelId = 'bear', slot = 0) {
+  if (!validPlacement(placement) || !dimensions) return []
+  const shape = shapeFor(part, modelId, slot)
+  return normalizeSeams(seamPaths(shape, piecePaths(shape), placement, dimensions), dimensions)
 }
 
 function bounds(paths) {
@@ -148,4 +164,4 @@ function validatePlacements(design, fabrics, layout, modelId = 'bear', seamOverl
   return { ready, parts }
 }
 
-module.exports = { texturePlacement, pieceOutline, fabricBoundary, validatePlacements }
+module.exports = { texturePlacement, pieceOutline, pieceSeams, fabricBoundary, validatePlacements }

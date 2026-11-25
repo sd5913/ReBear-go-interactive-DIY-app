@@ -192,6 +192,225 @@ function readBear(arrayBuffer) {
   return parts;
 }
 
+// Rabbit UVs are split into front/back head and body panels, plus two UV
+// islands for each ear. Keep each island independently selectable on fabric.
+function readRabbit(arrayBuffer) {
+  const header = new DataView(arrayBuffer);
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2) {
+    throw new Error('Invalid rabbit GLB');
+  }
+  const jsonLength = header.getUint32(12, true);
+  const encoded = new Uint8Array(arrayBuffer, 20, jsonLength);
+  const doc = JSON.parse(decodeURIComponent(Array.from(encoded, b => '%' + b.toString(16).padStart(2, '0')).join('')));
+  const binOffset = 28 + jsonLength;
+
+  function attribute(index) {
+    const accessor = doc.accessors[index];
+    const view = doc.bufferViews[accessor.bufferView];
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[accessor.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[accessor.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[accessor.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported rabbit attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (accessor.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(accessor.count * width);
+    for (let i = 0; i < accessor.count; i++) {
+      for (let axis = 0; axis < width; axis++) values[i * width + axis] = header[read](offset + i * stride + axis * bytes, true);
+    }
+    return values;
+  }
+
+  const definitions = {
+    'rabit-head-front': { ids: ['rabbit_head_front'], group: 0, label: '头部', side: 'front' },
+    'rabit-head-back': { ids: ['rabbit_head_back'], group: 0, label: '头部', side: 'back' },
+    'rabit-body-front': { ids: ['rabbit_body_front'], group: 1, label: '身体', side: 'front' },
+    'rabit-body-back': { ids: ['rabbit_body_back'], group: 1, label: '身体', side: 'back' },
+    'rabit-left-ear': { ids: ['rabbit_left_ear_front', 'rabbit_left_ear_back'], group: 2, label: '耳朵', side: 'front' },
+    'rabit-left-ear.001': { ids: ['rabbit_right_ear_front', 'rabbit_right_ear_back'], group: 2, label: '耳朵', side: 'back' }
+  };
+  const parts = [];
+
+  function transform(node, x, y, z, normal = false) {
+    const scale = node.scale || [1, 1, 1], q = node.rotation || [0, 0, 0, 1];
+    x *= scale[0]; y *= scale[1]; z *= scale[2];
+    const [qx, qy, qz, qw] = q;
+    const ix = qw * x + qy * z - qz * y;
+    const iy = qw * y + qz * x - qx * z;
+    const iz = qw * z + qx * y - qy * x;
+    const iw = -qx * x - qy * y - qz * z;
+    const rotated = [
+      ix * qw + iw * -qx + iy * -qz - iz * -qy,
+      iy * qw + iw * -qy + iz * -qx - ix * -qz,
+      iz * qw + iw * -qz + ix * -qy - iy * -qx
+    ];
+    const translation = normal ? [0, 0, 0] : (node.translation || [0, 0, 0]);
+    return rotated.map((value, axis) => value + translation[axis]);
+  }
+
+  for (const node of doc.nodes || []) {
+    const definition = definitions[node.name];
+    if (!definition || node.mesh === undefined) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) continue;
+      if (primitive.attributes.NORMAL === undefined || primitive.attributes.TEXCOORD_0 === undefined) continue;
+      const pos = attribute(primitive.attributes.POSITION);
+      const normal = attribute(primitive.attributes.NORMAL);
+      const uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined ? Array.from({ length: pos.length / 3 }, (_, i) => i) : Array.from(attribute(primitive.indices));
+      const parent = Array.from({ length: pos.length / 3 }, (_, i) => i);
+      function root(i) {
+        while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; }
+        return i;
+      }
+      for (let i = 0; i < indices.length; i += 3) {
+        const first = root(indices[i]);
+        parent[root(indices[i + 1])] = first;
+        parent[root(indices[i + 2])] = first;
+      }
+      const components = new Map();
+      for (let i = 0; i < indices.length; i += 3) {
+        const key = root(indices[i]);
+        if (!components.has(key)) components.set(key, []);
+        components.get(key).push(...indices.slice(i, i + 3));
+      }
+      const panels = [...components.values()].sort((a, b) => Math.min(...a) - Math.min(...b));
+      if (panels.length !== definition.ids.length) throw new Error('Unexpected rabbit UV panels');
+      panels.forEach((panel, panelIndex) => {
+        const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+        panel.forEach(i => {
+          bounds[0] = Math.min(bounds[0], uv[i * 2]);
+          bounds[1] = Math.min(bounds[1], uv[i * 2 + 1]);
+          bounds[2] = Math.max(bounds[2], uv[i * 2]);
+          bounds[3] = Math.max(bounds[3], uv[i * 2 + 1]);
+        });
+        const uWidth = bounds[2] - bounds[0] || 1;
+        const vHeight = bounds[3] - bounds[1] || 1;
+        parts.push({
+          id: definition.ids[panelIndex], group: definition.group, label: definition.label, side: definition.side,
+          base: [.72, .48, .32],
+          pos: new Float32Array(panel.flatMap(i => transform(node, pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]))),
+          normal: new Float32Array(panel.flatMap(i => transform(node, normal[i * 3], normal[i * 3 + 1], normal[i * 3 + 2], true))),
+          uv: new Float32Array(panel.flatMap(i => [(uv[i * 2] - bounds[0]) / uWidth, (uv[i * 2 + 1] - bounds[1]) / vHeight]))
+        });
+      });
+    }
+  }
+
+  if (parts.length !== 8) throw new Error('Incomplete rabbit model');
+  const minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    const axis = i % 3;
+    minimum[axis] = Math.min(minimum[axis], value);
+    maximum[axis] = Math.max(maximum[axis], value);
+  }));
+  const center = minimum.map((value, axis) => (value + maximum[axis]) / 2);
+  const scale = 1.18 / Math.max(...maximum.map((value, axis) => value - minimum[axis]));
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    const axis = i % 3;
+    part.pos[i] = (value - center[axis]) * scale + (axis === 1 ? .91 : 0);
+  }));
+  return parts;
+}
+
+// The cat GLB separates front and back UV panels for its head and body.
+function readCat(arrayBuffer) {
+  const header = new DataView(arrayBuffer);
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2) {
+    throw new Error('Invalid cat GLB');
+  }
+  const jsonLength = header.getUint32(12, true);
+  const encoded = new Uint8Array(arrayBuffer, 20, jsonLength);
+  const doc = JSON.parse(decodeURIComponent(Array.from(encoded, b => '%' + b.toString(16).padStart(2, '0')).join('')));
+  const binOffset = 28 + jsonLength;
+
+  function attribute(index) {
+    const accessor = doc.accessors[index];
+    const view = doc.bufferViews[accessor.bufferView];
+    const width = { SCALAR: 1, VEC2: 2, VEC3: 3 }[accessor.type];
+    const bytes = { 5121: 1, 5123: 2, 5125: 4, 5126: 4 }[accessor.componentType];
+    const read = { 5121: 'getUint8', 5123: 'getUint16', 5125: 'getUint32', 5126: 'getFloat32' }[accessor.componentType];
+    if (!width || !bytes || !read) throw new Error('Unsupported cat attribute');
+    const offset = binOffset + (view.byteOffset || 0) + (accessor.byteOffset || 0);
+    const stride = view.byteStride || width * bytes;
+    const values = new Float32Array(accessor.count * width);
+    for (let i = 0; i < accessor.count; i++) {
+      for (let axis = 0; axis < width; axis++) values[i * width + axis] = header[read](offset + i * stride + axis * bytes, true);
+    }
+    return values;
+  }
+
+  const definitions = {
+    'cat-face-front': { id: 'cat_head_front', group: 0, label: '头部', side: 'front' },
+    'cat-face-back': { id: 'cat_head_back', group: 0, label: '头部', side: 'back' },
+    'cat-body-front': { id: 'cat_body_front', group: 1, label: '身体', side: 'front' },
+    'cat-body-back': { id: 'cat_body_back', group: 1, label: '身体', side: 'back' }
+  };
+  const parts = [];
+
+  function transform(node, x, y, z, normal = false) {
+    const scale = node.scale || [1, 1, 1], q = node.rotation || [0, 0, 0, 1];
+    x *= scale[0]; y *= scale[1]; z *= scale[2];
+    const [qx, qy, qz, qw] = q;
+    const ix = qw * x + qy * z - qz * y;
+    const iy = qw * y + qz * x - qx * z;
+    const iz = qw * z + qx * y - qy * x;
+    const iw = -qx * x - qy * y - qz * z;
+    const rotated = [
+      ix * qw + iw * -qx + iy * -qz - iz * -qy,
+      iy * qw + iw * -qy + iz * -qx - ix * -qz,
+      iz * qw + iw * -qz + ix * -qy - iy * -qx
+    ];
+    const translation = normal ? [0, 0, 0] : (node.translation || [0, 0, 0]);
+    return rotated.map((value, axis) => value + translation[axis]);
+  }
+
+  for (const node of doc.nodes || []) {
+    const definition = definitions[node.name];
+    if (!definition || node.mesh === undefined) continue;
+    for (const primitive of doc.meshes[node.mesh].primitives) {
+      if (primitive.mode !== undefined && primitive.mode !== 4) continue;
+      if (primitive.attributes.NORMAL === undefined || primitive.attributes.TEXCOORD_0 === undefined) continue;
+      const pos = attribute(primitive.attributes.POSITION);
+      const normal = attribute(primitive.attributes.NORMAL);
+      const uv = attribute(primitive.attributes.TEXCOORD_0);
+      const indices = primitive.indices === undefined
+        ? Array.from({ length: pos.length / 3 }, (_, i) => i)
+        : Array.from(attribute(primitive.indices));
+      const bounds = [Infinity, Infinity, -Infinity, -Infinity];
+      indices.forEach(index => {
+        bounds[0] = Math.min(bounds[0], uv[index * 2]);
+        bounds[1] = Math.min(bounds[1], uv[index * 2 + 1]);
+        bounds[2] = Math.max(bounds[2], uv[index * 2]);
+        bounds[3] = Math.max(bounds[3], uv[index * 2 + 1]);
+      });
+      const width = bounds[2] - bounds[0] || 1;
+      const height = bounds[3] - bounds[1] || 1;
+      parts.push({
+        id: definition.id, group: definition.group, label: definition.label, side: definition.side,
+        base: [.88, .85, .77],
+        pos: new Float32Array(indices.flatMap(i => transform(node, pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]))),
+        normal: new Float32Array(indices.flatMap(i => transform(node, normal[i * 3], normal[i * 3 + 1], normal[i * 3 + 2], true))),
+        uv: new Float32Array(indices.flatMap(i => [(uv[i * 2] - bounds[0]) / width, (uv[i * 2 + 1] - bounds[1]) / height]))
+      });
+    }
+  }
+
+  if (parts.length !== 4) throw new Error('Incomplete cat model');
+  const minimum = [Infinity, Infinity, Infinity], maximum = [-Infinity, -Infinity, -Infinity];
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    const axis = i % 3;
+    minimum[axis] = Math.min(minimum[axis], value);
+    maximum[axis] = Math.max(maximum[axis], value);
+  }));
+  const center = minimum.map((value, axis) => (value + maximum[axis]) / 2);
+  const fit = 1.18 / Math.max(...maximum.map((value, axis) => value - minimum[axis]));
+  parts.forEach(part => part.pos.forEach((value, i) => {
+    const axis = i % 3;
+    part.pos[i] = (value - center[axis]) * fit + (axis === 1 ? .91 : 0);
+  }));
+  return parts;
+}
+
 // The supplied cushion has indexed meshes named top / bottom / loop.
 // Its loop contains two disconnected UV panels, giving four editable pieces.
 function readCushion(arrayBuffer) {
@@ -335,8 +554,10 @@ const fabrics = [
 
 function createBear(gl, buffer, options = {}) {
   const cushion = options.modelId === 'cushion';
+  const rabbit = options.modelId === 'rabbit';
+  const cat = options.modelId === 'cat';
   const transparentBackground = Boolean(options.transparentBackground);
-  const parts = cushion ? readCushion(buffer) : readBear(buffer);
+  const parts = cushion ? readCushion(buffer) : rabbit ? readRabbit(buffer) : cat ? readCat(buffer) : readBear(buffer);
   // Center the actual mesh, then fit all eight box corners to the current orbit.
   const minimum=[Infinity,Infinity,Infinity],maximum=[-Infinity,-Infinity,-Infinity];
   parts.forEach(part=>part.pos.forEach((value,i)=>{
@@ -347,6 +568,14 @@ function createBear(gl, buffer, options = {}) {
   const half=minimum.map((v,i)=>(maximum[i]-v)/2);
   const corners=[];
   for(const x of [-half[0],half[0]])for(const y of [-half[1],half[1]])for(const z of [-half[2],half[2]])corners.push([x,y,z]);
+  // Rendering expands each selected part around its own center. Compute this
+  // after the shared model transform so every model type (including cushion)
+  // provides the center expected by the WebGL shader.
+  parts.forEach(part=>{
+    const lo=[Infinity,Infinity,Infinity],hi=[-Infinity,-Infinity,-Infinity];
+    part.pos.forEach((value,i)=>{const axis=i%3;lo[axis]=Math.min(lo[axis],value);hi[axis]=Math.max(hi[axis],value);});
+    part.center=lo.map((value,axis)=>(value+hi[axis])/2);
+  });
   const program = gl.createProgram();
 
   for (const [type, source] of [
@@ -404,7 +633,7 @@ function createBear(gl, buffer, options = {}) {
   const assignments = new Map();
   const adjustable = parts.filter(p => !p.fixed);
 
-  let selected = cushion ? 'cushion_top' : 'head_front';
+  let selected = cushion ? 'cushion_top' : rabbit ? 'rabbit_head_front' : cat ? 'cat_head_front' : 'head_front';
   let selectedGroup = null;
   let selectionConfirmed = false;
   let yaw = 0;
@@ -566,12 +795,13 @@ function createBear(gl, buffer, options = {}) {
   function scale() {
     const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
     const [cy,sy,cp,sp]=orbit();
+    const fitMargin = options.fillFrame ? 0.96 : 0.86;
     let extentX=1e-4,extentY=1e-4;
     for(const [x,y,z] of corners){
       extentX=Math.max(extentX,Math.abs(cy*x-sy*z));
       extentY=Math.max(extentY,Math.abs(cp*y-sp*(sy*x+cy*z)));
     }
-    const fit=Math.min(width*.86/(2*extentX),height*.86/(2*extentY));
+    const fit=Math.min(width*fitMargin/(2*extentX),height*fitMargin/(2*extentY));
     return [2*fit/width,2*fit/height];
   }
 
@@ -779,7 +1009,9 @@ function createBear(gl, buffer, options = {}) {
 
     captureFrontPixels(){
       const state={yaw,pitch,selected,selectedGroup,preview};
-      yaw=0;pitch=0;selected=null;selectedGroup=null;preview=null;
+      // Use the cushion's normal top-facing design view; the bear's front is
+      // still captured straight-on. Both saved cards use the actual 3D model.
+      yaw=0;pitch=cushion ? 0.65 : 0;selected=null;selectedGroup=null;preview=null;
       try{
         render();
         const width=gl.drawingBufferWidth,height=gl.drawingBufferHeight;
@@ -887,6 +1119,8 @@ if (typeof module === 'object') {
     createBear,
     readBear,
     readCushion,
+    readRabbit,
+    readCat,
     fabrics
   };
 } else {
@@ -894,6 +1128,8 @@ if (typeof module === 'object') {
     createBear,
     readBear,
     readCushion,
+    readRabbit,
+    readCat,
     fabrics
   };
 }

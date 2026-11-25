@@ -47,7 +47,7 @@ function saveDesign(name, design, fabrics, id, modelId = 'bear', thumbnail = '')
     updatedAt: now,
     design: normalized,
     thumbnailVersion: thumbnail ? 2 : 0,
-    thumbnail: thumbnail || previous?.thumbnail || (model.id === 'bear' ? '/assets/bear-model.png' : ''),
+    thumbnail: thumbnail || previous?.thumbnail || model.thumbnail || '',
     // Each saved scheme owns its fabric references, dimensions and measured placement.
     fabrics: clone(fabrics.filter(fabric => used.has(fabric.id)))
   }

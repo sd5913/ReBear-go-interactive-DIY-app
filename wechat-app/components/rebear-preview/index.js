@@ -11,8 +11,11 @@ Component({
     modelId:{type:String,value:'bear',observer(){this.updateCopy();if(this.canvas)this.loadModel();}},
     readOnly:{type:Boolean,value:false},
     immersive:{type:Boolean,value:false},
+    hideViewControls:{type:Boolean,value:false},
+    fillFrame:{type:Boolean,value:false},
     heightRpx:{type:Number,value:0,observer(){if(this.alive)this.updateCanvasHeight(()=>this.resizeCanvas());}},
     selectable:{type:Boolean,value:false},
+    showActions:{type:Boolean,value:false},
     suspend:{type:Boolean,value:false},
     selectedPart:{type:Number,value:-1,observer(){this.updateSelectedGroup();}},
     confirmed:{type:Boolean,value:false,observer(){this.updateSelectedGroup();}},
@@ -120,6 +123,14 @@ Component({
         front:'Top',back:'Bottom',viewHint:'Drag the cushion to view it from different angles.',
         hint:'Drag the cushion to rotate it, or drag a fabric onto it.'
       }:{front:'看上面',back:'看下面',viewHint:'拖动坐垫查看各个角度。',hint:'拖动坐垫旋转，也可以把下方布料拖到坐垫上。'});
+      if(this.data.modelId==='rabbit')Object.assign(t,this.data.language==='en'?{
+        viewHint:'Drag the rabbit to view it from different angles.',
+        hint:'Drag the rabbit to rotate it, or drag a fabric onto it.'
+      }:{viewHint:'拖动小兔查看各个角度。',hint:'拖动小兔旋转，也可以把下方布料拖到小兔身上。'});
+      if(this.data.modelId==='cat')Object.assign(t,this.data.language==='en'?{
+        viewHint:'Drag the cat to view it from different angles.',
+        hint:'Drag the cat to rotate it, or drag a fabric onto it.'
+      }:{viewHint:'拖动小猫查看各个角度。',hint:'拖动小猫旋转，也可以把下方布料拖到小猫身上。'});
       this.setData({t});
     },
     loadModel(){
@@ -132,7 +143,7 @@ Component({
       this.updateCopy();
       try{
         const model=getModel(this.data.modelId);
-        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive});
+        this.bear=createBear(this.gl,wx.getFileSystemManager().readFileSync(model.asset),{modelId:model.id,transparentBackground:this.data.immersive,fillFrame:this.data.fillFrame});
         this.bear.select(null);
         if(this.data.selectable)this.bear.selectGroup(this.data.selectedPart,this.data.confirmed);
         this.syncFabrics();

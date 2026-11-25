@@ -1,7 +1,13 @@
 <view class="design-page with-nav model-page">
-  <view class="steps"><view wx:for="{{t.steps}}" wx:key="*this" class="step-pill {{index === 1 ? 'current' : ''}}">{{item}}</view></view>
-  <view class="page-heading">{{t.heading}}</view>
-  <view class="muted">{{t.hint}}</view>
+  <view class="model-intro">
+    <view class="model-dialog">
+      <text>{{t.prompt}}</text>
+      <view class="model-dialog-tail" />
+    </view>
+    <view class="model-avatar">
+      <image class="model-avatar-image" src="/assets/ip-bear.png" mode="aspectFit" />
+    </view>
+  </view>
   <view class="model-list">
     <view wx:for="{{models}}" wx:key="id" class="model-card paper-card {{selectedId === item.id ? 'selected-model' : ''}}" data-id="{{item.id}}" bindtap="select" role="button" aria-label="{{item.name}}" aria-pressed="{{selectedId === item.id}}">
       <image class="model-thumb" src="{{item.thumbnail}}" mode="aspectFit"/>

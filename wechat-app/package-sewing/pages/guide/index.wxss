@@ -30,10 +30,16 @@ page{background:#fffbf3;color:#50372b;font-family:'Noto Sans SC','Microsoft YaHe
 .step-footer button{margin:0;min-width:0;line-height:1.4;min-height:92rpx;border-radius:30.77rpx;font-weight:500;display:flex;align-items:center;justify-content:center;white-space:normal}
 .previous{flex:150;background:#f6e0b2;font-size:27rpx;padding:20rpx 10rpx}.next{flex:188;background:#50372b;color:#fffdf8;font-size:25rpx;padding:20rpx 12rpx}
 .material-mask{position:fixed;left:0;right:0;top:0;bottom:0;z-index:30;background:rgba(77,52,41,.39);display:flex;align-items:center;padding:38.46rpx}
-.material-dialog{width:100%;padding:29rpx;border:2rpx solid #eadcc8;border-radius:34.6rpx;background:#fffdf8}
+.material-dialog{box-sizing:border-box;width:100%;max-height:calc(100vh - 76.92rpx);padding:29rpx;border:2rpx solid #eadcc8;border-radius:34.6rpx;background:#fffdf8;overflow-y:auto}
 .modal-heading{display:flex;align-items:center;justify-content:space-between;font-size:30.77rpx;font-weight:700;margin:9rpx 0 27rpx}
 .close-button{margin:0;padding:8rpx 6rpx 8rpx 20rpx;background:transparent;line-height:1;display:flex;align-items:center}
-.modal-preview{border-radius:27rpx;background:#ddd;overflow:hidden}
+.modal-preview{display:flex;justify-content:center;align-items:center;width:100%;border-radius:27rpx;background:#ddd;overflow:hidden}
+.modal-fabric-board{position:relative;flex:none;overflow:hidden;background:#ddd;outline:1rpx solid #c7b8a6}
+.modal-fabric-image{position:absolute;inset:0;width:100%;height:100%;display:block}
+.modal-piece{position:absolute;z-index:1;pointer-events:none}
+.modal-piece-mask{width:100%;height:100%;opacity:.86;filter:brightness(0) saturate(100%) invert(16%) sepia(5%) saturate(305%) hue-rotate(169deg) brightness(94%) contrast(90%)}
+.modal-piece-label{position:absolute;z-index:3;transform:translate(-50%,-50%);max-width:40%;padding:3rpx 8rpx;border-radius:12rpx;background:rgba(38,50,56,.58);color:#fff;text-align:center;font-size:17rpx;line-height:1.35;white-space:nowrap;pointer-events:none}
+.modal-seam-canvas{position:absolute;z-index:2;inset:0;width:100%;height:100%;pointer-events:none}
 .selected-fabric{font-size:22rpx;color:#967e6b;line-height:1.6;margin-top:16rpx}
 .missing{padding-top:40rpx;line-height:1.7}.missing button{margin-top:30rpx;background:#dae9ed}
 

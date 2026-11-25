@@ -1,7 +1,4 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "缝纫指导",
-  "usingComponents": {
-    "rebear-preview": "/components/rebear-preview/index"
-  }
+  "navigationBarTitleText": "缝纫指导"
 }

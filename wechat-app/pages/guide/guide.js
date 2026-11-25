@@ -19,7 +19,7 @@ Page({
       const record = this.id ? findDesign(this.id) : null
       if (this.id && !record) throw new Error('Missing design')
       const model = getModel(record ? record.modelId : (options.model || activeModelId()))
-      this.setData({name: record ? record.name : model.id === 'cushion' ? (language === 'en' ? 'My Patchwork Cushion' : '我的拼布坐垫') : saveText.defaultName})
+      this.setData({name: record ? record.name : model.id === 'cushion' ? (language === 'en' ? 'My Patchwork Cushion' : '我的拼布坐垫') : model.id === 'rabbit' ? (language === 'en' ? 'My Patchwork Rabbit' : '我的拼布小兔') : model.id === 'cat' ? (language === 'en' ? 'My Patchwork Cat' : '我的拼布小猫') : saveText.defaultName})
       this.loadDesign({
         design: record ? record.design : wx.getStorageSync(draftKey(model.id)) || {},
         fabrics: record ? record.fabrics : wx.getStorageSync('rebear-fabrics') || [],
@@ -43,12 +43,28 @@ Page({
       } : { heading: '你的坐垫，已经设计好啦！', list: '裁剪清单 · 坐垫的布料档案',
         steps: ['01  核对上面、下面与两块侧围的布料和编号', '02  拼接侧围，再与上下面缝合，预留翻口', '03  翻面、填充，再封闭翻口'] })
       Object.assign(saveText, this.language === 'en' ? { saveTitle: 'Save Cushion Design', incomplete: 'Confirm all cushion parts first.' } : { saveTitle: '保存坐垫方案', incomplete: '请先确认坐垫的全部部位。' })
+    } else if (model.id === 'rabbit') {
+      Object.assign(t, this.language === 'en' ? {
+        heading: 'Your rabbit design is ready!', list: 'Cutting Checklist · Your Rabbit’s Fabrics',
+        steps: ['01  Match the front and back of the head and body, plus all four ear panels', '02  Sew matching panels right sides together and leave a turning opening', '03  Turn, stuff and assemble the rabbit, then close the opening']
+      } : { heading: '你的小兔，已经设计好啦！', list: '裁剪清单 · 小兔的布料档案',
+        steps: ['01  核对头部、身体正反面和四片耳朵的布料编号', '02  对应裁片正面相对缝合，并预留翻口', '03  翻面填充、组装小兔，再封闭翻口'] })
+      Object.assign(saveText, this.language === 'en' ? { saveTitle: 'Save Rabbit Design', incomplete: 'Confirm all rabbit parts first.' } : { saveTitle: '保存小兔方案', incomplete: '请先确认小兔的全部部位。' })
+    } else if (model.id === 'cat') {
+      Object.assign(t, this.language === 'en' ? {
+        heading: 'Your cat design is ready!', list: 'Cutting Checklist · Your Cat’s Fabrics',
+        steps: ['01  Match the front and back of the head and body', '02  Sew each pair right sides together, leaving a turning opening', '03  Turn, stuff the head and body, then close and assemble'],
+        finishTitle: 'Your cat’s next chapter is yours.', stay: 'Got It · Keep Reading', finish: 'Finish Review ✓'
+      } : { heading: '你的小猫，已经设计好啦！', list: '裁剪清单 · 小猫的布料档案',
+        steps: ['01  核对头部和身体正反面的布料与编号', '02  正面相对缝合对应裁片，并预留翻口', '03  翻面填充头部和身体，再封口组装'],
+        finishTitle: '小猫的下一段故事，交给你啦。', stay: '知道了，继续看指南', finish: '完成查看 ✓' })
+      Object.assign(saveText, this.language === 'en' ? { saveTitle: 'Save Cat Design', incomplete: 'Confirm both cat parts first.' } : { saveTitle: '保存小猫方案', incomplete: '请先确认小猫的全部部位。' })
     }
     this.design = migrateModelDesign(JSON.parse(JSON.stringify(payload.design)), model.id)
     this.fabrics = payload.fabrics
     this.setData({
       t, saveText, modelId: model.id,
-      pattern: model.id === 'cushion' ? '/assets/cushion-pattern.png' : '/assets/pattern-demo.png',
+      pattern: model.id === 'cushion' ? '/assets/cushion-pattern.png' : model.id === 'rabbit' || model.id === 'cat' ? model.uvAtlas : '/assets/pattern-demo.png',
       rows: designView(this.design, this.fabrics, t.parts, saveText.fabric, model.id).rows,
       complete: isComplete(this.design, this.fabrics, model.id), error: ''
     })
