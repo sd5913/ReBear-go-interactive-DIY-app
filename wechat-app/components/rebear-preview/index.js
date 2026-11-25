@@ -11,6 +11,7 @@ Component({
     modelId:{type:String,value:'bear',observer(){this.updateCopy();if(this.canvas)this.loadModel();}},
     readOnly:{type:Boolean,value:false},
     immersive:{type:Boolean,value:false},
+    heightRpx:{type:Number,value:0,observer(){if(this.alive)this.updateCanvasHeight(()=>this.resizeCanvas());}},
     selectable:{type:Boolean,value:false},
     suspend:{type:Boolean,value:false},
     selectedPart:{type:Number,value:-1,observer(){this.updateSelectedGroup();}},
@@ -79,7 +80,7 @@ Component({
       const info=wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync();
       const unit=info.windowWidth/750;
       const height=this.data.immersive?Math.max(240,Math.min(this.data.selectable ? 1000 : 400,info.windowHeight*(this.data.selectable ? .62 : .3)/unit)):420;
-      this.setData({canvasHeight:height},done);
+      this.setData({canvasHeight:this.data.heightRpx>0?this.data.heightRpx:height},done);
     },
     initCanvas(){
       this.createSelectorQuery().select('#canvas').fields({node:true,size:true},result=>{

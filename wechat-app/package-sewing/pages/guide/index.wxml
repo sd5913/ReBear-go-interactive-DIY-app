@@ -1,0 +1,38 @@
+<view class="sewing-page">
+  <view class="capsule-space" style="height:{{topInset + 34}}px"></view>
+  <view class="sewing-header">
+    <button class="back-button" bindtap="back" aria-label="{{t.previous}}">‹</button>
+    <text class="header-title">{{t.title}}</text>
+    <view class="brand"><text class="brand-icon">♧</text> ReBear</view>
+  </view>
+  <block wx:if="{{record}}">
+    <view class="guide-intro">
+      <view class="eyebrow">MAKE YOUR BEAR</view>
+      <view class="guide-heading">{{t.heading}}</view>
+      <view class="guide-subtitle">{{t.subtitle}}</view>
+      <view class="progress-row"><view class="progress-track"><view class="progress-fill" style="width:{{progress}}%"></view></view><view class="progress-count">{{number}} / 05</view></view>
+      <view class="stage-nav"><text wx:for="{{t.stages}}" wx:key="*this">{{item}}</text></view>
+    </view>
+    <view class="step-card">
+      <view class="step-tag">STEP {{number}}</view>
+      <view class="step-title">{{title}}</view>
+      <view class="step-description">{{description}}</view>
+      <view class="step-image-box {{step === 0 ? 'pattern-box' : ''}}"><image class="step-image {{step === 0 ? 'pattern-image' : ''}}" src="{{stepImage}}" mode="scaleToFill" bindtap="previewImage" aria-label="{{title}}"/></view>
+    </view>
+    <block wx:if="{{step === 0}}">
+      <view wx:for="{{materials}}" wx:key="id" class="fabric-card">
+        <image class="fabric-image" src="{{item.image}}" mode="aspectFill"/>
+        <view class="fabric-info"><view class="fabric-name">{{item.displayName}}</view><view class="fabric-size">{{item.width}} × {{item.height}} cm</view><button class="view-fabric" data-index="{{index}}" bindtap="openMaterial">{{t.view}}</button></view>
+      </view>
+    </block>
+    <view class="step-footer"><button class="previous" bindtap="previous">{{t.previous}}</button><button class="next" bindtap="next">{{nextText}}</button></view>
+  </block>
+  <view wx:else class="missing"><view>{{error}}</view><button bindtap="backToDesigns">{{t.back}}</button></view>
+</view>
+<view wx:if="{{selectedMaterial}}" class="material-mask" bindtap="closeMaterial">
+  <view class="material-dialog" catchtap="stop">
+    <view class="modal-heading"><text>{{t.modalTitle}}</text><button class="close-button" bindtap="closeMaterial" aria-label="{{t.close}}"><image src="/package-sewing/assets/close.svg" style="width:19rpx;height:20rpx"/></button></view>
+    <view class="modal-preview"><rebear-preview model-id="{{modelId}}" read-only="{{true}}" immersive="{{true}}" height-rpx="{{610}}" fabrics="{{record.fabrics}}" assignments="{{assignments}}" language="{{language}}"/></view>
+    <view class="selected-fabric">{{selectedMaterial.displayName}} · {{selectedMaterial.parts}}</view>
+  </view>
+</view>

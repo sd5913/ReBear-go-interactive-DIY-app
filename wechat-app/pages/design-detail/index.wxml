@@ -3,7 +3,7 @@
   <block wx:if="{{record}}">
     <view class="page-heading">{{record.name}}</view><view class="muted">{{modelName}} · {{t.savedOn}}{{date}}</view>
     <view class="design-preview"><rebear-preview model-id="{{modelId}}" fabrics="{{record.fabrics}}" assignments="{{assignments}}" language="{{language}}" read-only="{{true}}"/></view>
-    <view class="detail-actions"><button class="action primary" bindtap="edit">{{t.editScheme}}</button><button class="action secondary" bindtap="guide">{{t.guide}}</button></view>
+    <view class="detail-actions"><button class="action secondary" bindtap="guide">{{t.guide}}</button></view>
     <view class="section-heading"><view>{{t.usedFabrics}}</view><text>{{materials.length}}{{t.fabricUnit}}</text></view>
     <view wx:for="{{materials}}" wx:key="id" class="material"><image src="{{item.image}}" mode="aspectFill"/><view><view class="material-name">{{item.displayName}}</view><view class="muted">{{item.width}} × {{item.height}} cm · {{item.parts}}</view></view></view>
     <view class="section-heading">{{t.assignments}}</view>

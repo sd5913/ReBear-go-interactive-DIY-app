@@ -16,6 +16,13 @@
       "pages": [
         "pages/design/design"
       ]
+    },
+    {
+      "root": "package-sewing",
+      "name": "sewing",
+      "pages": [
+        "pages/guide/index"
+      ]
     }
   ],
   "window": {

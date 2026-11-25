@@ -17,8 +17,7 @@ Page({
       this.setData({ t, language, record, modelId: model.id, modelName: model.names[language], date: displayDate(record.updatedAt), ...designView(record.design, record.fabrics, model.parts[language], t.fabric, model.id), error: '' })
     } catch (_) { this.setData({ t, language, record: null, error: t.missing }) }
   },
-  edit() { wx.navigateTo({ url: '/package-design/pages/design/design?id=' + encodeURIComponent(this.id) }) },
-  guide() { wx.navigateTo({ url: '/pages/guide/guide?id=' + encodeURIComponent(this.id) }) },
+  guide() { wx.navigateTo({ url: '/package-sewing/pages/guide/index?id=' + encodeURIComponent(this.id) }) },
   remove() { this.setData({ deleteIds: [this.id] }) },
   closeDelete() { this.setData({ deleteIds: [] }) },
   confirmDelete() {
