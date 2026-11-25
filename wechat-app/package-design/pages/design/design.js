@@ -282,7 +282,8 @@ Page({
 
     });
 
-    const validation = validatePlacements(this.design, this.library, this.layout, this.modelId);
+    const seamOverlays = [];
+    const validation = validatePlacements(this.design, this.library, this.layout, this.modelId, seamOverlays);
     const placementReady = Boolean(this.layout) && validation.ready;
     const confirmed = faces.map((ids, index) => {
       const record = this.design[index];
@@ -296,7 +297,9 @@ Page({
       ghost.invalid = Boolean(validation.parts[ghost.part].errors[ghost.index]?.invalid);
       ghost.status = ghost.invalid ? '!' : confirmed[ghost.part] ? '✓' : '…';
     });
-    const cloth = fabricLayout(this.layout, this.data.items[this.data.fabricIndex]?.id);
+    const fabricId = this.data.items[this.data.fabricIndex]?.id;
+    const cloth = fabricLayout(this.layout, fabricId);
+    this.visibleSeams = seamOverlays.filter(seam => seam.fabricId === fabricId);
 
 
 
@@ -357,7 +360,56 @@ Page({
       assignments,
 
       previewFabrics: this.library.filter(f => used.has(f.id))
-    });
+    }, () => this.drawSeamLines(cloth));
+  },
+
+  drawSeamLines(cloth) {
+    if (!cloth || !this.data.items.length) {
+      this.seamCanvas = null;
+      return;
+    }
+    if (!this.seamCanvas) {
+      if (this.seamCanvasPending || !this.createSelectorQuery) return;
+      this.seamCanvasPending = true;
+      this.createSelectorQuery().select('#seam-canvas').fields({ node: true }, result => {
+        this.seamCanvasPending = false;
+        if (!result?.node || !this.data.items.length) return;
+        this.seamCanvas = result.node;
+        this.drawSeamLines(fabricLayout(this.layout, this.data.items[this.data.fabricIndex]?.id));
+      }).exec();
+      return;
+    }
+
+    const canvas = this.seamCanvas;
+    const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const dpr = Math.min(info.pixelRatio || 1, 3);
+    const width = Math.max(1, Math.round(cloth.width * dpr));
+    const height = Math.max(1, Math.round(cloth.height * dpr));
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const context = canvas.getContext('2d');
+    context.setTransform(width / cloth.width, 0, 0, height / cloth.height, 0, 0);
+    context.clearRect(0, 0, cloth.width, cloth.height);
+    context.setLineDash([4, 3]);
+    context.lineJoin = 'round';
+    for (const invalid of [false, true]) {
+      context.strokeStyle = invalid ? '#c7352b' : '#53605b';
+      context.lineWidth = invalid ? 1.8 : 1.25;
+      for (const seam of this.visibleSeams) {
+        if (seam.error.invalid !== invalid) continue;
+        for (const path of seam.paths) {
+          context.beginPath();
+          path.forEach((point, index) => {
+            const x = point.x * cloth.width;
+            const y = point.y * cloth.height;
+            if (index === 0) context.moveTo(x, y);
+            else context.lineTo(x, y);
+          });
+          context.closePath();
+          context.stroke();
+        }
+      }
+    }
   },
 
   selectPart(e) {

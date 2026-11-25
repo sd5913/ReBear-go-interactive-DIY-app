@@ -2,7 +2,7 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const { faces, migrateDesign } = require('../wechat-app/utils/bear-layout')
 const { getModel, pieceLayout, fabricLayout } = require('../wechat-app/utils/model-catalog')
-const { texturePlacement, validatePlacements } = require('../wechat-app/utils/pattern-placement')
+const { texturePlacement, pieceOutline, validatePlacements } = require('../wechat-app/utils/pattern-placement')
 const { saveDesign, isComplete } = require('../wechat-app/utils/design-records')
 
 const layout = { width: 600, height: 600, unit: 1, pieceWidth: 116, pieceHeight: 140, padding: 10 }
@@ -200,7 +200,7 @@ test('overlap during drag disables confirm and save, marks ghosts, then clears w
 })
 
 test('transparent wrapper margins and different fabrics do not report false overlaps', () => {
-  const design={2:{pieces:[piece(0,50,50),piece(1,50,100)]}}
+  const design={2:{pieces:[piece(0,50,50),piece(1,50,120)]}}
   assert.equal(validatePlacements(design,fabrics,layout).parts[2].valid,true)
   design[2].pieces[1]=piece(1,52,52,'other')
   assert.equal(validatePlacements(design,[...fabrics,{...fabrics[0],id:'other'}],layout).parts[2].valid,true)
@@ -216,4 +216,58 @@ test('filled overlap survives rotation, global scale, fabric aspect ratio and no
       assert.deepEqual(validatePlacements(normalize(design,scene),fabrics),result)
     }
   }
+})
+
+
+test('seam allowance expands each rotated shape by one physical centimeter at every zoom', () => {
+  const cloth = { ...fabrics[0], width: 38, height: 42 }
+  // Measured bounds, not rounded display dimensions, define the fabric coordinate system.
+  cloth.measurement = { boundsCm: { width: 38.25, height: 42.5 } }
+  for (const sizeScale of [.5, 1, 2.5]) for (const angle of [0, 45, 90]) {
+    const patch = { ...piece(0, 150, 150), angle }
+    const placement = texturePlacement(patch, pieceLayout(layout, 'bear', 0, sizeScale))
+    const original = pieceOutline(0, placement)
+    const seams = []
+    validatePlacements({0: {pieces: [{...patch, placement}]}}, [cloth], null, 'bear', seams)
+    const expanded = seams[0].paths.flat()
+    for (const [axis, span] of [['x', 38.25], ['y', 42.5]]) {
+      const extent = points => [Math.min(...points.map(point => point[axis])), Math.max(...points.map(point => point[axis]))]
+      const [min, max] = extent(original)
+      const [seamMin, seamMax] = extent(expanded)
+      assert.ok(Math.abs((min - seamMin) * span - 1) < .01)
+      assert.ok(Math.abs((seamMax - max) * span - 1) < .01)
+    }
+  }
+})
+
+test('seams alone can conflict, and touching or separating them clears the conflict', () => {
+  const patch = (index, x) => ({ ...piece(index, 0, 0), placement: { origin: [x/60, .5], axisX: [.1, 0], axisY: [0, .1] } })
+  // Side rectangles are 6 cm wide, so margins need a total gap of 2 cm.
+  const design = { 2: { pieces: [patch(0, 20), patch(1, 27.5)] } }
+  const check = () => validatePlacements(design, fabrics, null, 'cushion').parts[2]
+  assert.deepEqual(check().errors[0].overlaps, [{part: 2, index: 1}])
+  design[2].pieces[1] = patch(1, 28)
+  assert.equal(check().valid, true)
+  design[2].pieces[1] = patch(1, 29)
+  assert.equal(check().valid, true)
+})
+
+test('seam allowance must fit inside the measured fabric and prevents saving old overlapping layouts', () => {
+  const cloth = {
+    ...fabrics[0],
+    measurement: {
+      boundsCm: {width: 60, height: 60},
+      polygonCm: [{x:0,y:0}, {x:60,y:0}, {x:60,y:60}, {x:10,y:60}]
+    }
+  }
+  const patch = { ...piece(0, 0, 0), placement: { origin: [9/60, .5], axisX: [.1,0], axisY: [0,.1] } }
+  const design = { 2: { pieces: [patch] } }
+  assert.equal(validatePlacements(design, [cloth], null, 'cushion').parts[2].errors[0].outside, true)
+  patch.placement.origin[0] = 10/60
+  assert.equal(validatePlacements(design, [cloth], null, 'cushion').parts[2].valid, true)
+
+  const saved = normalize(completeDraft())
+  saved[2].pieces[0].placement = { origin: [20/60,.5], axisX: [.05,0], axisY: [0,.05] }
+  saved[2].pieces[1].placement = { origin: [24/60,.5], axisX: [.05,0], axisY: [0,.05] }
+  assert.equal(isComplete(saved, fabrics), false)
 })
