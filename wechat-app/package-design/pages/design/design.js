@@ -166,6 +166,8 @@ Page({
   },
 
   onUnload() {
+    if(this.piecePositionTimer){clearTimeout(this.piecePositionTimer);this.piecePositionTimer=null;}
+    this.pendingPiecePosition=null;
     if (!this.record) { try { wx.removeStorageSync(this.draftKey); } catch (_) {} }
   },
 
@@ -598,30 +600,45 @@ Page({
     if (!e.touches || !e.touches.length) return;
     const index = Number(e.currentTarget.dataset.index);
     if (!Number.isFinite(index)) return;
-    this.setData({selected:index});
+    if(this.pinch)return;
     if (e.touches.length === 1) {
+      this.setData({selected:index});
       const touch=e.touches[0], piece=this.design[this.data.part]?.pieces[index];
       if(piece)this.pieceDrag={index,x:Number(touch.clientX??touch.pageX??touch.x),y:Number(touch.clientY??touch.pageY??touch.y),px:piece.x,py:piece.y};
       return;
     }
+    const activeIndex=Number.isInteger(this.pieceDrag?.index)?this.pieceDrag.index:Number(this.data.selected);
+    if(activeIndex>=0)this.beginPiecePinch(e.touches,activeIndex);
+  },
+
+  beginPiecePinch(touches,index){
+    if(this.piecePositionTimer){clearTimeout(this.piecePositionTimer);this.piecePositionTimer=null;}
+    this.flushPiecePosition();
     this.pieceDrag=null;
-    const point = touch => ({x: Number(touch.clientX ?? touch.pageX ?? touch.x), y: Number(touch.clientY ?? touch.pageY ?? touch.y)});
-    const first = point(e.touches[0]);
-    const second = point(e.touches[1]);
-    if(![first.x,first.y,second.x,second.y].every(Number.isFinite))return;
-    const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
-    this.pinch = {
+    const point=touch=>({x:Number(touch.clientX??touch.pageX??touch.x),y:Number(touch.clientY??touch.pageY??touch.y)});
+    const first=point(touches[0]),second=point(touches[1]);
+    if(![first.x,first.y,second.x,second.y].every(Number.isFinite))return null;
+    const distance=Math.max(1,Math.hypot(first.x-second.x,first.y-second.y));
+    const piece=this.design[this.data.part]?.pieces[index];
+    this.pinch={
       index,
-      startDistance: distance,
-      startScale: Number(this.design.__sizeScale) || 1,
-      design: JSON.parse(JSON.stringify(this.design))
+      startDistance:distance,
+      startScale:Number(this.design.__sizeScale)||1,
+      startAngle:Math.atan2(second.y-first.y,second.x-first.x)*180/Math.PI,
+      startRotation:Number(piece?.angle)||0,
+      design:JSON.parse(JSON.stringify(this.design))
     };
-    this.setData({selected: index});
+    this.setData({selected:index});
+    return this.pinch;
   },
 
   pieceTouchMove(e) {
-    const gesture = this.pinch;
     if (!e.touches || !e.touches.length) return;
+    let gesture=this.pinch;
+    if(!gesture&&e.touches.length>=2){
+      const activeIndex=Number.isInteger(this.pieceDrag?.index)?this.pieceDrag.index:Number(this.data.selected);
+      if(activeIndex>=0)gesture=this.beginPiecePinch(e.touches,activeIndex);
+    }
     if (!gesture) {
       const drag=this.pieceDrag;
       if(!drag || e.touches.length!==1)return;
@@ -629,8 +646,14 @@ Page({
       const x=drag.px+Number(touch.clientX??touch.pageX??touch.x)-drag.x;
       const y=drag.py+Number(touch.clientY??touch.pageY??touch.y)-drag.y;
       if(!Number.isFinite(x)||!Number.isFinite(y))return;
-      const pieces=this.design[this.data.part].pieces.map((p,i)=>i===drag.index?{...p,x,y}:p);
-      this.updatePieces(pieces,drag.index,this.data.part,false);
+      this.pendingPiecePosition={index:drag.index,part:this.data.part,x,y};
+      if(!this.piecePositionTimer){
+        const wait=Math.max(0,32-(Date.now()-(this.piecePositionRenderedAt||0)));
+        this.piecePositionTimer=setTimeout(()=>{
+          this.piecePositionTimer=null;
+          this.flushPiecePosition();
+        },wait);
+      }
       return;
     }
     if(e.touches.length<2)return;
@@ -640,7 +663,14 @@ Page({
     if(![first.x,first.y,second.x,second.y].every(Number.isFinite))return;
     const distance = Math.max(1, Math.hypot(first.x - second.x, first.y - second.y));
     const sizeScale = Math.max(.5, Math.min(2.5, gesture.startScale * distance / gesture.startDistance));
-    if (Math.abs(sizeScale - (Number(this.design.__sizeScale) || 1)) < .005) return;
+    const angle=Math.atan2(second.y-first.y,second.x-first.x)*180/Math.PI;
+    let rotationDelta=angle-gesture.startAngle;
+    if(rotationDelta>180)rotationDelta-=360;
+    else if(rotationDelta < -180)rotationDelta+=360;
+    const rotation=((gesture.startRotation+rotationDelta)%360+360)%360;
+    const scaleChanged=Math.abs(sizeScale-gesture.startScale)>=.005;
+    const rotationChanged=Math.abs(rotationDelta)>=.5;
+    if(!scaleChanged&&!rotationChanged)return;
 
     this.design = JSON.parse(JSON.stringify(gesture.design));
     const delta = sizeScale - gesture.startScale;
@@ -651,21 +681,53 @@ Page({
         piece.y = (Number(piece.y) || 0) - height * delta / 2;
       });
     });
+    const selectedPiece=this.design[this.data.part]?.pieces[gesture.index];
+    if(selectedPiece)selectedPiece.angle=rotation;
     this.faces.forEach((_,part)=>{if(this.design[part]?.pieces?.length)this.design[part].confirmed=false;});
     this.design.__sizeScale = sizeScale;
     this.hasChanges = true;
-    this.loadPart(this.data.part, gesture.index);
+    const activePieces=this.design[this.data.part]?.pieces||[];
+    this.setData({pieces:this.data.pieces.map((piece,index)=>activePieces[index]?{
+      ...piece,x:activePieces[index].x,y:activePieces[index].y,angle:activePieces[index].angle||0,sizeScale
+    }:piece)});
   },
 
   pieceTouchEnd(e) {
-    const dragged=Boolean(this.pieceDrag);
+    const drag=this.pieceDrag;
+    const dragged=Boolean(drag);
     this.pieceDrag=null;
-    if(dragged)this.store();
+    if(dragged){
+      const touch=e.changedTouches&&e.changedTouches[0];
+      if(touch){
+        const x=drag.px+Number(touch.clientX??touch.pageX??touch.x)-drag.x;
+        const y=drag.py+Number(touch.clientY??touch.pageY??touch.y)-drag.y;
+        if(Number.isFinite(x)&&Number.isFinite(y))this.pendingPiecePosition={index:drag.index,part:this.data.part,x,y};
+      }
+      if(this.piecePositionTimer){clearTimeout(this.piecePositionTimer);this.piecePositionTimer=null;}
+      this.flushPiecePosition();
+      this.loadPart(this.data.part,drag.index);
+      this.store();
+    }
     if (!this.pinch || (e.touches && e.touches.length >= 2)) return;
     const selected = this.pinch.index;
     this.pinch = null;
-    this.store();
     this.loadPart(this.data.part, selected);
+    this.store();
+  },
+
+  // Drag updates only the moving piece. Defer placement validation and seam redraw until release.
+  flushPiecePosition(){
+    const next=this.pendingPiecePosition;
+    this.pendingPiecePosition=null;
+    if(!next)return;
+    const source=this.design[next.part]?.pieces;
+    if(!source||!source[next.index])return;
+    const pieces=source.map((piece,index)=>index===next.index?{...piece,x:next.x,y:next.y}:piece);
+    this.design[next.part].pieces=pieces;
+    this.hasChanges=true;
+    this.piecePositionRenderedAt=Date.now();
+    const visible=this.data.pieces.map((piece,index)=>index===next.index?{...piece,x:next.x,y:next.y}:piece);
+    this.setData({pieces:visible});
   },
 
   restartForRescale() {

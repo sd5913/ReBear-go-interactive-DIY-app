@@ -5,7 +5,7 @@ const models = [
     id: 'bear',
     names: { zh: '小熊', en: 'Bear' },
     asset: '/assets/bear-material/bear.glb',
-    thumbnail: '/assets/bear-model.png',
+    thumbnail: '/assets/bear-material/bear-png.png',
     difficulty: 4,
     faces,
     // Full-body UV atlas is an equal-scale reference. Its normalized bounds
@@ -35,7 +35,7 @@ const models = [
     asset: '/assets/cashion-material/cashion.glb',
     uvAtlas: '/assets/cashion-material/cashion-uv.png',
     uvAtlasSize: [1024, 1024],
-    thumbnail: '/assets/cushion.png',
+    thumbnail: '/assets/cashion-material/cashion-png.png',
     difficulty: 2,
     faces: [['cushion_top'], ['cushion_bottom'], ['cushion_side_a', 'cushion_side_b']],
     parts: { zh: ['上面', '下面', '侧围'], en: ['Top', 'Bottom', 'Sides'] },

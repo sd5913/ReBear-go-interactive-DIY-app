@@ -89,7 +89,7 @@
           wx:key="index"
           hidden="{{item.fabricId !== items[fabricIndex].id}}"
           class="piece-wrap current-piece {{selected === index ? 'chosen' : ''}} {{pieceErrors[item.index].invalid ? 'piece-invalid' : ''}}"
-          style="width:{{item.width * item.scaleX * item.sizeScale}}rpx;height:{{item.height * item.scaleY * item.sizeScale}}rpx;left:{{item.x}}px;top:{{item.y}}px"
+          style="width:{{item.width * item.scaleX * item.sizeScale}}rpx;height:{{item.height * item.scaleY * item.sizeScale}}rpx;transform:translate3d({{item.x}}px,{{item.y}}px,0)"
           data-index="{{index}}"
           bindtap="pick"
           bindtouchstart="pieceTouchStart"

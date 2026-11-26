@@ -1,7 +1,9 @@
 <view class="fabric-page">
   <block wx:if="{{!editing}}">
-    <view class="heading">{{t.heading}}</view>
-    <view class="intro">{{t.intro}}</view>
+    <view class="fabric-guide">
+      <view class="fabric-guide-dialog"><text>{{t.uploadPrompt}}</text><view class="fabric-guide-tail" /></view>
+      <view class="fabric-guide-avatar"><image class="fabric-guide-avatar-image" src="/assets/ip-bear.png" mode="aspectFit" /></view>
+    </view>
     <view wx:if="{{!items.length}}" class="empty paper-card">
       <rb-bear />
       <view class="empty-title">{{t.empty}}</view>
@@ -11,11 +13,14 @@
       <image src="{{item.image}}" class="thumb" mode="aspectFill" />
       <view class="info">
         <view class="card-title">{{t.fabric}} {{index+1}} {{item.name ? ' · '+item.name : ''}}</view>
-        <view class="dimensions">{{item.width}} × {{item.height}} cm · {{item.measurement?t.a4:t.sizeHint}}</view>
-        <view class="actions"><button data-id="{{item.id}}" catchtap="edit">{{t.edit}}</button><button data-id="{{item.id}}" catchtap="remove">{{t.remove}}</button></view>
-      </view><text class="saved-badge">{{item.selected ? '✓ '+t.selected : t.saved}}</text>
+        <view class="actions">
+          <button class="edit-action" data-id="{{item.id}}" catchtap="edit">{{t.edit}}</button>
+          <button class="delete-icon" data-id="{{item.id}}" catchtap="remove" aria-label="{{t.remove}}"><view class="trash-symbol" /></button>
+        </view>
+      </view>
+      <text class="saved-badge">{{item.selected ? '✓ '+t.selected : t.saved}}</text>
     </view><button class="wide {{items.length?'secondary':''}}" bindtap="add">{{t.add}}</button><button wx:if="{{!items.length}}" class="sample-button" bindtap="sample">{{t.sample}}</button>
-    <view class="library-note">{{t.selectHint}} · {{selectedCount}} / {{items.length}}</view><view class="library-note">{{t.libraryNote}}</view>
+    <view wx:if="{{t.libraryNote}}" class="library-note">{{t.libraryNote}}</view>
     <view class="bottom with-nav"><button class="wide" disabled="{{!selectedCount}}" bindtap="preview">{{items.length?t.preview:t.disabled}}</button></view>
   </block>
   <block wx:else>

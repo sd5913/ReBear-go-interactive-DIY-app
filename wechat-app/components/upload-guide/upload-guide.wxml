@@ -1,6 +1,5 @@
 <view wx:if="{{visible}}" class="guide-mask" catchtouchmove="stop" catchtap="stop">
  <view class="guide-dialog" role="dialog" aria-modal="true" aria-label="{{t.counter}}" catchtap="stop">
-  <view class="guide-header"><view class="guide-brand">Rebear</view><view class="guide-counter">{{step===0?t.hello:step+' / 4'}}</view><button class="guide-close" bindtap="skip" aria-label="{{t.close}}">×</button></view>
   <scroll-view class="guide-scroll {{step===0?'welcome-scroll':''}}" scroll-y="{{true}}" scroll-into-view="guide-step-{{step}}">
    <view id="guide-step-{{step}}"><view wx:if="{{step===0}}" class="welcome"><image class="welcome-bear" src="{{artRoot}}welcome-bear.png" mode="aspectFit"/><view class="speech-bubble">{{t.welcome}}</view><view class="welcome-dots"><view class="welcome-dot"></view><view class="welcome-dot"></view><view class="welcome-dot"></view><view class="welcome-dot"></view></view></view>
    <view wx:else class="guide-step">
@@ -17,6 +16,13 @@
    </view>
    </view>
   </scroll-view>
-  <view class="guide-footer"><button class="guide-primary" bindtap="next">{{step===0?t.start:step===4?t.done:t.next}} →</button><view class="guide-links"><button wx:if="{{step>0}}" class="guide-link" bindtap="previous">{{t.previous}}</button><button class="guide-link" bindtap="skip">{{t.skip}}</button></view></view>
+  <view class="guide-footer">
+   <view class="guide-navigation">
+    <button wx:if="{{step>0}}" class="guide-step-arrow" bindtap="previous" aria-label="{{t.previous}}"><view class="guide-arrow-icon guide-arrow-left" /></button>
+    <view wx:else class="guide-step-arrow-placeholder" />
+    <button class="guide-skip" bindtap="skip">{{t.skip}}</button>
+    <button class="guide-step-arrow" bindtap="next" aria-label="{{step===4?t.done:t.next}}"><view class="guide-arrow-icon" /></button>
+   </view>
+  </view>
  </view>
 </view>
