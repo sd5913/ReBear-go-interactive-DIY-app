@@ -2,7 +2,7 @@ const test=require('node:test')
 const assert=require('node:assert/strict')
 const fs=require('node:fs')
 const {createBear}=require('../wechat-app/components/rebear-preview/engine')
-function renderer(){
+function renderer(modelId='bear'){
   const colors=[]
   const gl=new Proxy({drawingBufferWidth:2,drawingBufferHeight:2,NO_ERROR:0,
     createShader:()=>({}),createProgram:()=>({}),createBuffer:()=>({}),createTexture:()=>({}),
@@ -11,8 +11,9 @@ function renderer(){
     uniform3fv:(name,value)=>{if(name==='uHighlight')colors.push(value)},
     readPixels(x,y,w,h,format,type,data){data.set([10,0,0,255,10,0,0,255,20,0,0,255,20,0,0,255])}
   },{get:(target,key)=>key in target?target[key]:(()=>{})})
-  const file=fs.readFileSync(require('node:path').join(__dirname,'../wechat-app/assets/bear-material/bear.glb'))
-  return {bear:createBear(gl,file.buffer.slice(file.byteOffset,file.byteOffset+file.byteLength)),colors}
+  const model=require('../wechat-app/utils/model-catalog').getModel(modelId)
+  const file=fs.readFileSync(require('node:path').join(__dirname,'../wechat-app'+model.asset))
+  return {bear:createBear(gl,file.buffer.slice(file.byteOffset,file.byteOffset+file.byteLength),{modelId}),colors}
 }
 test('confirmed selections use green and unconfirmed selections retain orange',()=>{
   const {bear,colors}=renderer()
@@ -34,6 +35,59 @@ test('thumbnail capture flips WebGL rows and restores selection after export',()
 let component
 global.Component=value=>{component=value}
 require('../wechat-app/components/rebear-preview/index')
+
+function pickingComponent(bear){
+  const pending=[],events=[]
+  const c={...component.methods,alive:true,data:{selectable:true},bear,
+    canvasRect:{left:25,top:250,width:350,height:500},
+    triggerEvent(name,value){events.push({name,...value})},
+    createSelectorQuery(){return{select(){return this},boundingClientRect(callback){pending.push(callback);return this},exec(){}}}}
+  return {c,pending,events}
+}
+test('bear, rabbit and cat body taps remain on the body after scrolling, for viewport and CanvasTouch coordinates',()=>{
+  for(const modelId of ['bear','rabbit','cat']){
+    const {bear}=renderer(modelId)
+    try{
+      let point
+      for(let v=.55;v<.95&&!point;v+=.025){
+        const id=bear.pick(.5,v)
+        if(bear.parts.find(part=>part.id===id)?.group===1)point={u:.5,v}
+      }
+      assert.ok(point,modelId+' has a visible body target')
+      const {c,pending,events}=pickingComponent(bear)
+      for(const top of [250,80,-120,250]){
+        for(const local of [false,true]){
+          const rect={left:25,top,width:350,height:500}
+          const touch=local?{x:point.u*rect.width,y:point.v*rect.height}
+            :{clientX:rect.left+point.u*rect.width,clientY:rect.top+point.v*rect.height}
+          c.orbitStart({touches:[touch]})
+          c.orbitEnd({changedTouches:[touch]})
+          assert.equal(pending.length,1,'measure current bounds on every tap')
+          pending.shift()(rect)
+          assert.deepEqual(events.at(-1),{name:'partselect',index:1},modelId+' top='+top+' local='+local)
+          assert.equal(c.partAnchors[1].y,point.v*100)
+        }
+      }
+      assert.equal(events.length,8)
+    }finally{bear.dispose()}
+  }
+})
+test('dragging, cancelled touches and stale measurements do not select a model part',()=>{
+  let picks=0
+  const {c,pending,events}=pickingComponent({pick(){picks++;return 'body'},parts:[{id:'body',group:1}],rotate(){}})
+  const touch={clientX:150,clientY:300},rect={left:25,top:80,width:350,height:500}
+  const tap=()=>{c.orbitStart({touches:[touch]});c.orbitEnd({changedTouches:[touch]})}
+  c.orbitStart({touches:[touch]})
+  c.orbitMove({touches:[{clientX:200,clientY:300}]})
+  c.orbitEnd({changedTouches:[{clientX:200,clientY:300}]})
+  assert.equal(pending.length,0)
+  tap();c.orbitCancel();pending.shift()(rect)
+  tap();c.orbitStart({touches:[touch]});pending.shift()(rect)
+  tap();c.alive=false;pending.shift()(rect)
+  c.alive=true;tap();c.bear={};pending.shift()(rect)
+  assert.equal(picks,0)
+  assert.equal(events.length,0)
+})
 test('confirmation celebration retains the selected group as confirmed',()=>{
   let selected
   const c={data:{selectable:true,selectedPart:2},bear:{selectGroup:(...args)=>{selected=args}},showCelebration(){}}

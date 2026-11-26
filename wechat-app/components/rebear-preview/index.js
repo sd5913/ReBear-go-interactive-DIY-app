@@ -91,7 +91,6 @@ Component({
         try{
           if(!result||!result.node)throw new Error('Canvas unavailable');
           this.canvas=result.node;
-          this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.canvasRect=rect;}).exec();
           const gl=this.canvas.getContext('webgl',{antialias:true,alpha:!!this.data.immersive,preserveDrawingBuffer:true});
           if(!gl)throw new Error('WebGL unavailable');
           const dpr=Math.min(2,(wx.getWindowInfo?wx.getWindowInfo():wx.getSystemInfoSync()).pixelRatio||1);
@@ -115,7 +114,6 @@ Component({
         this.canvas.width=Math.round(rect.width*dpr);this.canvas.height=Math.round(rect.height*dpr);
         if(this.bear)this.bear.render();
       }).exec();
-      this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.canvasRect=rect;}).exec();
     },
     updateCopy(){
       const t={...(copy[this.data.language]||copy.en)};
@@ -198,6 +196,7 @@ Component({
     front(){if(this.bear)this.bear.show('front');},
     back(){if(this.bear)this.bear.show('back');},
     orbitStart(e){
+      this.orbitCancel();
       if(e.touches.length!==1)return;
       const t=e.touches[0];
       this.orbit={x:t.clientX??t.x,y:t.clientY??t.y};
@@ -215,18 +214,28 @@ Component({
       if(!this.data.selectable||!this.bear||!start||!e||!e.changedTouches||!e.changedTouches.length)return;
       const t=e.changedTouches[0],x=t.clientX??t.x,y=t.clientY??t.y;
       if(Math.hypot(x-start.x,y-start.y)>14)return;
-      const rect=this.canvasRect;
-      if(!rect||!rect.width||!rect.height)return;
-      const part=this.bear.pick((x-rect.left)/rect.width,(y-rect.top)/rect.height);
-      if(!part)return;
-      const hit=this.bear.parts.find(item=>item.id===part);
-      if(hit){
-        const point={x:(x-rect.left)/rect.width*100,y:(y-rect.top)/rect.height*100};
-        if(!this.partAnchors)this.partAnchors={};
-        this.partAnchors[hit.group]=point;
-        this.triggerEvent('partselect',{index:hit.group});
-      }
+      const bear=this.bear;
+      this.pickRequest=start;
+      // Bounds are viewport-relative and change whenever the page scrolls.
+      this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{
+        if(!this.alive||this.bear!==bear||this.pickRequest!==start)return;
+        this.pickRequest=null;
+        if(!rect||!rect.width||!rect.height||this.data.suspend)return;
+        // CanvasTouch x/y are already local; clientX/clientY are viewport-relative.
+        const u=Number.isFinite(t.clientX)?(t.clientX-rect.left)/rect.width:t.x/rect.width;
+        const v=Number.isFinite(t.clientY)?(t.clientY-rect.top)/rect.height:t.y/rect.height;
+        if(!Number.isFinite(u)||!Number.isFinite(v)||u<0||u>1||v<0||v>1)return;
+        const part=bear.pick(u,v);
+        if(!part)return;
+        const hit=bear.parts.find(item=>item.id===part);
+        if(hit){
+          if(!this.partAnchors)this.partAnchors={};
+          this.partAnchors[hit.group]={x:u*100,y:v*100};
+          this.triggerEvent('partselect',{index:hit.group});
+        }
+      }).exec();
     },
+    orbitCancel(){this.orbit=null;this.tapStart=null;this.pickRequest=null;},
     confirmAction(){if(this.data.canConfirm)this.triggerEvent('confirmaction');},
     saveAction(){if(this.data.canSave)this.triggerEvent('saveaction');},
     measureDropArea(){
