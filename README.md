@@ -1,7 +1,7 @@
 # ReBear-go-interactive-DIY-app
 # Introduction
 ReBear is a frabric management tools that helps users to transform their old clothes into frabric toys. Our persona is DIY lovers, environmentalists, beginners of hand-made objects.
-# User Jounrey Map
+# User Journey Map
 picture
 ## Project planning
 - [ReBear task board and weekly reviews](https://github.com/orgs/sd5913/projects/20)
