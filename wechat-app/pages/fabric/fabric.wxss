@@ -17,9 +17,9 @@
 .fabric-guide-avatar-image{position:absolute;left:-62rpx;top:-24rpx;width:268rpx;height:211rpx;max-width:none}
 .dimensions{display:none}
 .card .info{padding-right:0}
-.card .actions{align-items:center;gap:10rpx;margin-top:20rpx}
-.card .actions button.edit-action{flex:1;min-width:0;margin:0;max-width:none;width:auto;min-height:66rpx;padding:10rpx 8rpx;border:1rpx solid #c7ac8e;border-radius:18rpx;background:#fffbf2;font-size:23rpx;line-height:1.5}
-.card .actions button.delete-icon{display:flex;flex:0 0 80rpx;align-items:center;justify-content:center;width:80rpx;height:66rpx;min-width:0;margin:0;padding:0;border:0;border-radius:16rpx;background:#fbe9e7}
+.card .actions{align-items:center;gap:8rpx;margin-top:20rpx}
+.card .actions button.edit-action{box-sizing:border-box;flex:1;min-width:0;margin:0;max-width:none;width:auto;min-height:72rpx;padding:10rpx 8rpx;border:1rpx solid #c7ac8e;border-radius:18rpx;background:#fffbf2;font-size:23rpx;line-height:1.5}
+.card .actions button.delete-icon{box-sizing:border-box;display:flex;flex:0 0 84rpx;align-items:center;justify-content:center;width:84rpx;height:72rpx;min-width:0;margin:0;padding:0;border:1rpx solid #eac5bf;border-radius:16rpx;background:#fbe9e7}
 .trash-symbol{position:relative;box-sizing:border-box;width:24rpx;height:27rpx;border:2rpx solid #cc8179;border-top:0;border-radius:2rpx 2rpx 5rpx 5rpx}
 .trash-symbol::before{position:absolute;top:-5rpx;left:-4rpx;width:28rpx;height:3rpx;border-radius:3rpx;background:#cc8179;content:''}
 .trash-symbol::after{position:absolute;top:-9rpx;left:6rpx;width:8rpx;height:4rpx;border:2rpx solid #cc8179;border-bottom:0;border-radius:4rpx 4rpx 0 0;content:''}
