@@ -7,6 +7,7 @@ const MASK_UNITS = 96000
 const masks = require('./pattern-masks')
 const rabbitMasks = require('./rabbit-pattern-masks')
 const catMasks = require('./cat-pattern-masks')
+const cushionMasks = require('./cushion-pattern-masks')
 const contours = new Map()
 const offsets = new Map()
 
@@ -21,7 +22,7 @@ function clip(subject, operation, other = []) {
 
 function maskContours(name) {
   if (!contours.has(name)) {
-    const source = masks[name] || rabbitMasks[name] || catMasks[name]
+    const source = masks[name] || rabbitMasks[name] || catMasks[name] || cushionMasks[name]
     if (!source) throw new Error('Unknown pattern mask: ' + name)
     const strips = source.map(strip => strip.map(([x, y]) => ({
       X: Math.round((x - .5) * MASK_UNITS),

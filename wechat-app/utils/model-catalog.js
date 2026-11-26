@@ -31,6 +31,8 @@ const models = [
   },
   {
     id: 'cushion',
+    // Native side mask size is 512 x 80; WXML displays it with aspectFit.
+    pieceAspectRatios: [[1], [1], [512 / 80, 512 / 80]],
     names: { zh: '坐垫', en: 'Cushion' },
     asset: '/assets/cashion-material/cashion.glb',
     uvAtlas: '/assets/cashion-material/cashion-uv.png',
@@ -134,6 +136,7 @@ function pieceLayout(layout, modelId, part, sizeScale = 1) {
   if (!layout) return layout
   const model = getModel(modelId)
   let result = { ...layout }
+  if (model.pieceAspectRatios) result.pieceAspectRatios = model.pieceAspectRatios[part]
   if (model.pieceScales) {
     result.pieceScales = model.pieceScales[part]
     result.squareMaskFit = Boolean(model.squareMaskFit)

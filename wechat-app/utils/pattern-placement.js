@@ -17,6 +17,11 @@ function texturePlacement(piece, layout) {
   let height = pieceHeight - 2 * layout.padding * scale[1]
   // Bear mask PNGs are square and displayed using aspectFit.
   if (layout.squareMaskFit) width = height = Math.min(width, height)
+  const aspect = layout.pieceAspectRatios?.[piece.index]
+  if (aspect > 0) {
+    if (width / height > aspect) width = height * aspect
+    else height = width / aspect
+  }
   return {
     fabricId: piece.fabricId,
     pixelSize: [1/layout.width, 1/layout.height],
@@ -37,7 +42,7 @@ function shapeFor(part, modelId, slot) {
     ['rabbit_body_front', 'rabbit_body_back'],
     ['rabbit_left_ear_front', 'rabbit_left_ear_back', 'rabbit_right_ear_front', 'rabbit_right_ear_back']
   ][part]?.[slot] || 'circle'
-  if (modelId === 'cushion') return part === 2 ? 'rectangle' : 'circle'
+  if (modelId === 'cushion') return part === 2 ? (slot === 0 ? 'cushion_side_a' : 'cushion_side_b') : 'circle'
   if (part === 0) return 'head'
   if (part === 1) return 'body'
   if (part === 2) return slot === 0 ? 'left-ears' : 'right-ears'
