@@ -4,7 +4,7 @@ const { updateThumbnail, listDesigns, deleteDesigns, designView, displayDate } =
 const { getModel } = require('../../utils/model-catalog')
 
 Page({
-  data: { t: copy.zh, language: 'zh', records: [], managing: false, selectedIds: [], deleteIds: [], error: '', repairItems: [] },
+  data: { t: copy.en, language: 'en', records: [], managing: false, selectedIds: [], deleteIds: [], error: '', repairItems: [] },
   onShow() {
     this.closed=false;
     if(!this.thumbnailAttempts)this.thumbnailAttempts=new Set();

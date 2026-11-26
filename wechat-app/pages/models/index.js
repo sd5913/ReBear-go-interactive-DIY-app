@@ -7,7 +7,7 @@ const copy = {
 }
 
 Page({
-  data: { language: 'zh', t: copy.zh, models: [], selectedId: '', opening: false },
+  data: { language: 'en', t: copy.en, models: [], selectedId: '', opening: false },
   onLoad() {
     const language = getLanguage()
     this.setData({ language, t: copy[language], selectedId: activeModelId(), models: models.map(model => ({

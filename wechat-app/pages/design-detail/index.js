@@ -4,7 +4,7 @@ const { findDesign, designView, displayDate } = require('../../utils/design-reco
 const { getModel } = require('../../utils/model-catalog')
 
 Page({
-  data: { t: copy.zh, language: 'zh', record: null, rows: [], materials: [], assignments: {}, error: '' },
+  data: { t: copy.en, language: 'en', record: null, rows: [], materials: [], assignments: {}, error: '' },
   onLoad(options) { this.id = options.id },
   onShow() {
     const language = getLanguage()

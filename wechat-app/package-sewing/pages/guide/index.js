@@ -32,7 +32,7 @@ const images = ['pattern', 'cut', 'sew', 'stuff', 'assemble']
 const progressWidths = [52, 86, 124, 223, 286].map(width => width / 346 * 100)
 
 Page({
-  data: { t: copy.zh, language: 'zh', record: null, step: 0, materials: [], selectedMaterial: null, selectedPieces: [], selectedSeams: [], boardWidth: 0, boardHeight: 0, error: '' },
+  data: { t: copy.en, language: 'en', record: null, step: 0, materials: [], selectedMaterial: null, selectedPieces: [], selectedSeams: [], boardWidth: 0, boardHeight: 0, error: '' },
   onLoad(options) {
     const language = getLanguage()
     const t = copy[language]

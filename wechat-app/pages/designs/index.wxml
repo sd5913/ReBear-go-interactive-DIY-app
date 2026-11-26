@@ -1,6 +1,9 @@
 <import src="../../templates/delete-design.wxml"/>
 <view class="design-page with-nav {{managing ? 'managing' : ''}}">
-  <view class="heading-row"><view class="page-heading">{{t.title}}</view><button wx:if="{{records.length}}" bindtap="toggleManage">{{managing ? t.done : t.edit}}</button></view>
+  <view class="design-intro">
+    <view class="design-dialog"><text>{{t.savedHere}}</text><view class="design-dialog-tail" /></view>
+    <view class="design-avatar"><image class="design-avatar-image" src="/assets/ip-bear.png" mode="aspectFit" /></view>
+  </view>
   <view class="muted">{{records.length ? t.savedPrefix + records.length + t.savedSuffix : t.noSaved}}</view>
   <view wx:if="{{error}}" class="muted">{{error}}</view>
   <view wx:if="{{managing}}" class="management"><button bindtap="selectAll">{{selectedIds.length === records.length ? t.deselectAll : t.selectAll}}</button><text>{{t.selectHint}}</text></view>

@@ -1,7 +1,7 @@
 <view class="page model-{{modelId}}">
   <view class="interaction-hint">
     <view class="guide-bubble">
-      <text>拖动点击不同部位，选择对应布料</text>
+      <text>{{t.interactionHint}}</text>
       <view class="guide-bubble-tail" />
     </view>
     <view class="guide-bear-face">
@@ -139,11 +139,11 @@
 
 <view wx:if="{{exitDialog || saveDialog}}" class="confirm-mask">
   <view class="confirm-card" catchtap="stopDialog">
-    <view class="confirm-title">{{exitDialog ? '您还没有保存，确定退出吗？' : '保存至设计稿'}}</view>
-    <input wx:if="{{saveDialog}}" placeholder="方案名称" value="{{saveName}}" maxlength="40" bindinput="inputSaveName" />
+    <view class="confirm-title">{{exitDialog ? t.exitTitle : t.saveTitle}}</view>
+    <input wx:if="{{saveDialog}}" placeholder="{{t.namePlaceholder}}" value="{{saveName}}" maxlength="40" bindinput="inputSaveName" />
     <view class="confirm-actions">
-      <button disabled="{{saving}}" bindtap="cancelDialog">再想想</button>
-      <button class="primary" disabled="{{saving}}" bindtap="confirmDialog">{{saving ? '保存中…' : exitDialog ? '退出' : '保存'}}</button>
+      <button disabled="{{saving}}" bindtap="cancelDialog">{{t.thinkAgain}}</button>
+      <button class="primary" disabled="{{saving}}" bindtap="confirmDialog">{{saving ? t.savingText : exitDialog ? t.exit : t.save}}</button>
     </view>
   </view>
 </view>

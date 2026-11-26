@@ -3,7 +3,7 @@ const { getLanguage } = require('../../utils/i18n')
 const { findDesign, designView } = require('../../utils/design-records')
 const { getModel } = require('../../utils/model-catalog')
 Page({
-  data: { t: copy.zh, record: null, thumbnails: [] },
+  data: { t: copy.en, record: null, thumbnails: [] },
   onLoad(options) {
     this.id = options.id
     const language = getLanguage()

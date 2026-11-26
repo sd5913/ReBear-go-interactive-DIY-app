@@ -21,7 +21,20 @@ const copy = {
     size: '实际布料尺寸',
     confirmed: '已确认',
     fixPlacement: '请先调整标红裁片，避免重叠或超出布料范围。',
-    checking: '正在检查裁片位置…'
+    checking: '正在检查裁片位置…',
+    interactionHint: '拖动点击不同部位，选择对应布料',
+    exitTitle: '您还没有保存，确定退出吗？',
+    saveTitle: '保存至设计稿',
+    namePlaceholder: '方案名称',
+    thinkAgain: '再想想',
+    savingText: '保存中…',
+    exit: '退出',
+    save: '保存',
+    saveNameRequired: '请填写方案名称',
+    saveFallback: '已保存，但无法打开我的设计，请返回查看',
+    saveFailed: '保存失败',
+    retry: '请重试',
+    incompleteDesign: '请先确认所有部位并检查裁片位置'
   },
   en: {
     title: 'Design Your Bear',
@@ -45,7 +58,20 @@ const copy = {
     size: 'Measured fabric size',
     confirmed: 'Confirmed',
     fixPlacement: 'Adjust the red pieces to keep them inside the fabric and apart.',
-    checking: 'Checking piece positions…'
+    checking: 'Checking piece positions…',
+    interactionHint: 'Tap or drag a part to choose its fabric',
+    exitTitle: 'You have not saved this design. Exit anyway?',
+    saveTitle: 'Save to Designs',
+    namePlaceholder: 'Design name',
+    thinkAgain: 'Keep Editing',
+    savingText: 'Saving…',
+    exit: 'Exit',
+    save: 'Save',
+    saveNameRequired: 'Enter a design name',
+    saveFallback: 'Saved, but My Designs could not be opened. Please return to view it.',
+    saveFailed: 'Could not save the design',
+    retry: 'Please try again.',
+    incompleteDesign: 'Confirm every part and check the pattern pieces first.'
   }
 };
 
@@ -60,8 +86,8 @@ const {
 
 Page({
   data: {
-    t: copy.zh,
-    language: 'zh',
+    t: copy.en,
+    language: 'en',
     modelId: 'bear',
     pieceWidth: 116,
     pieceHeight: 140,
@@ -86,11 +112,11 @@ Page({
   },
 
   onLoad(options) {
-    let language = 'zh';
+    let language = 'en';
     let design = {};
 
     try {
-      language = wx.getStorageSync('rebear-language') === 'en' ? 'en' : 'zh';
+      language = wx.getStorageSync('rebear-language') === 'zh' ? 'zh' : 'en';
     } catch (e) {}
 
     this.design = {};
@@ -136,7 +162,7 @@ Page({
       title: t.title
     });
     if (!this.record && wx.enableAlertBeforeUnload) {
-      wx.enableAlertBeforeUnload({message: language === 'en' ? 'You have not saved this design. Exit anyway?' : '您还没有保存，确定退出吗？'});
+      wx.enableAlertBeforeUnload({message: t.exitTitle});
     }
 
     const channel = this.getOpenerEventChannel();
@@ -904,7 +930,7 @@ Page({
   async saveToDesigns(){
     if(this.data.saving)return;
     if(this.explainIncomplete()){this.setData({saveDialog:false});return;}
-    if(!(this.data.saveName||'').trim()){this.toast(this.data.language==='en'?'Enter a design name':'请填写方案名称');return;}
+    if(!(this.data.saveName||'').trim()){this.toast(this.data.t.saveNameRequired);return;}
     this.setData({saving:true});
     try{
       const d=JSON.parse(JSON.stringify(this.design));
@@ -916,11 +942,13 @@ Page({
       try{wx.removeStorageSync(this.draftKey)}catch(_){}
       this.hasChanges=false;
       if(wx.disableAlertBeforeUnload)wx.disableAlertBeforeUnload();
-      wx.reLaunch({url:'/pages/designs/index',fail:()=>this.toast('已保存，但无法打开我的设计，请返回查看')});
+      wx.reLaunch({url:'/pages/designs/index',fail:()=>this.toast(this.data.t.saveFallback)});
     }catch(e){
       this.setData({saving:false});
       console.error('Save design failed',e);
-      const message=e&&e.message==='Incomplete design'?'请先确认所有部位并检查裁片位置':e&&e.message==='Name required'?'请填写方案名称':'保存失败：'+(e&&e.message||'请重试');
+      const message=e&&e.message==='Incomplete design'?this.data.t.incompleteDesign:
+        e&&e.message==='Name required'?this.data.t.saveNameRequired:
+        this.data.t.saveFailed+': '+(e&&e.message||this.data.t.retry);
       this.toast(message);
     }
   }

@@ -24,8 +24,8 @@ const messages = {
 }
 const storageKey = 'rebear-language'
 function getLanguage() {
-  try { return wx.getStorageSync(storageKey) === 'en' ? 'en' : 'zh' }
-  catch (_) { return 'zh' }
+  try { return wx.getStorageSync(storageKey) === 'zh' ? 'zh' : 'en' }
+  catch (_) { return 'en' }
 }
 function saveLanguage(language) {
   try { wx.setStorageSync(storageKey, language) } catch (_) {}

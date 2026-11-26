@@ -1,7 +1,7 @@
 module.exports = {
   zh: {
     title: '我的设计', detail: '设计详情', savedTitle: '保存成功', edit: '编辑', done: '完成',
-    savedPrefix: '已保存 ', savedSuffix: ' 个方案', noSaved: '还没有保存的方案', empty: '还没有设计稿', emptyHint: '从上传一块布料开始',
+    savedHere: '你的设计保存在这里！', savedPrefix: '已保存 ', savedSuffix: ' 个方案', noSaved: '还没有保存的方案', empty: '还没有设计稿', emptyHint: '从上传一块布料开始',
     upload: '上传布料', selectAll: '全选', deselectAll: '取消全选', selectHint: '点击卡片选择方案',
     selectedPrefix: '已选择 ', selectedSuffix: ' 项', deleteSelected: '删除所选', remove: '删除',
     deleteTitle: '删除设计方案？', deleteHint: '删除后无法恢复。布料库中的原布料会保留。',
@@ -17,7 +17,7 @@ module.exports = {
   },
   en: {
     title: 'My Designs', detail: 'Design Details', savedTitle: 'Design Saved', edit: 'Edit', done: 'Done',
-    savedPrefix: '', savedSuffix: ' saved designs', noSaved: 'No saved designs yet', empty: 'No designs yet', emptyHint: 'Start by uploading a fabric',
+    savedHere: 'your design have been saved here！', savedPrefix: '', savedSuffix: ' saved designs', noSaved: 'No saved designs yet', empty: 'No designs yet', emptyHint: 'Start by uploading a fabric',
     upload: 'Upload Fabric', selectAll: 'Select All', deselectAll: 'Deselect All', selectHint: 'Tap a card to select it',
     selectedPrefix: '', selectedSuffix: ' selected', deleteSelected: 'Delete Selected', remove: 'Delete',
     deleteTitle: 'Delete designs?', deleteHint: 'Deleted designs cannot be restored. The original fabrics stay in your library.',

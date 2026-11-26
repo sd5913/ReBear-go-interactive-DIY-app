@@ -3,9 +3,9 @@ const text={
  en:{welcome:'Hi! I’m Rebear. Let me show you how to upload your fabric!',hello:'A little lesson with Rebear',start:'Start the Guide',next:'Next',done:'Start Uploading',previous:'Back',skip:"Don't show again",close:'Close Guide',counter:'Fabric Upload Guide',steps:[{title:'Add your old clothing',body:'Tap Add Clothing to take a photo or upload fabric you love!',hint:'Use your camera or choose a photo from your album.'},{title:'Prepare an A4 sheet',body:'Find an A4 sheet and lay it flat beside your clothing on the same surface. Then take a photo!',hint:'Lay the fabric in a single layer. Keep all four paper corners visible and do not cover the fabric.'},{title:'Frame the A4 sheet first',body:'Use the frame to select the A4 sheet. Match the short and long edges!',hint:'Red short edges are 21 cm; blue long edges are 29.7 cm. Drag each corner onto the paper.'},{title:'Frame your usable fabric',body:'Move the frame to mark the fabric you want to use. Now we can estimate its dimensions!',hint:'Avoid damage, buttons and thick seams. Check the estimated size with a ruler before saving.'}]}
 };
 Component({
- properties:{visible:{type:Boolean,value:false},language:{type:String,value:'zh'}},
- data:{step:0,t:text.zh,artRoot:'/assets/upload-guide/'},
- observers:{'visible, language':function(visible,language){this.setData({t:text[language==='en'?'en':'zh']});if(visible)this.setData({step:0})}},
+ properties:{visible:{type:Boolean,value:false},language:{type:String,value:'en'}},
+ data:{step:0,t:text.en,artRoot:'/assets/upload-guide/'},
+ observers:{'visible, language':function(visible,language){this.setData({t:text[language==='zh'?'zh':'en']});if(visible)this.setData({step:0})}},
  methods:{
  stop(){},
  next(){if(this.data.step<4){this.setData({step:this.data.step+1});return}this.triggerEvent('complete')},

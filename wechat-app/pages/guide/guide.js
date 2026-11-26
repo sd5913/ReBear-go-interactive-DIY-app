@@ -6,7 +6,7 @@ const { getModel, draftKey, activeModelId, migrateModelDesign } = require('../..
 const { findDesign, designView, saveDesign, isComplete } = require('../../utils/design-records')
 
 Page({
-  data: {t: copy.zh, saveText: saveCopy.zh, modelId: 'bear', pattern: '/assets/pattern-demo.png', rows: [], expanded: false, finished: false, name: '', saving: false, error: '', complete: false},
+  data: {t: copy.en, saveText: saveCopy.en, modelId: 'bear', pattern: '/assets/pattern-demo.png', rows: [], expanded: false, finished: false, name: '', saving: false, error: '', complete: false},
   onLoad(options) {
     const language = getLanguage()
     this.language = language

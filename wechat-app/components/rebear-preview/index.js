@@ -23,9 +23,9 @@ Component({
     canSave:{type:Boolean,value:false},
     fabrics:{type:Array,value:[]},
     assignments:{type:Object,value:{}},
-    language:{type:String,value:'zh',observer(){this.updateCopy();}}
+    language:{type:String,value:'en',observer(){this.updateCopy();}}
   },
-  data:{t:copy.zh,failed:false,textureError:false,canvasHeight:420},
+  data:{t:copy.en,failed:false,textureError:false,canvasHeight:420},
   observers:{'fabrics, assignments':function(){this.syncFabrics();}},
   lifetimes:{
     ready(){
@@ -118,7 +118,7 @@ Component({
       this.createSelectorQuery().select('#canvas').boundingClientRect(rect=>{this.canvasRect=rect;}).exec();
     },
     updateCopy(){
-      const t={...(copy[this.data.language]||copy.zh)};
+      const t={...(copy[this.data.language]||copy.en)};
       if(this.data.modelId==='cushion')Object.assign(t,this.data.language==='en'?{
         front:'Top',back:'Bottom',viewHint:'Drag the cushion to view it from different angles.',
         hint:'Drag the cushion to rotate it, or drag a fabric onto it.'

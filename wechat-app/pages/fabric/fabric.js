@@ -9,8 +9,8 @@ Object.assign(texts.zh, {title: '布料库', preview: '选布料，开始设计'
 Object.assign(texts.en, {title: 'Fabric Library', preview: 'Design with Selected Fabrics', selected: 'Selected', selectHint: 'Choose fabrics for this design'});
 const { models, draftKey } = require('../../utils/model-catalog');
 Page({
- data:{language:'zh',selectedCount:0,guideVisible:false,guideLanguage:'zh',t:texts.zh,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
- onLoad(options){let language='zh';try{language=wx.getStorageSync('rebear-language')==='en'?'en':'zh'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.sample==='1')this.sample()},
+ data:{language:'en',selectedCount:0,guideVisible:false,guideLanguage:'en',t:texts.en,items:[],editing:false,sheet:'',deleteId:'',image:'',width:'',height:'',selectionSize:60,x:40,y:40},
+ onLoad(options){let language='en';try{language=wx.getStorageSync('rebear-language')==='zh'?'zh':'en'}catch(e){};this.setData({t:texts[language],guideLanguage:language,language});wx.setNavigationBarTitle({title:this.data.t.title});try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}if(options.sample==='1')this.sample()},
  onShow(){this.selectedIds=new Set();try{this.applyItems(wx.getStorageSync('rebear-fabrics')||[])}catch(e){}this.setData({sheet:'',guideVisible:false})},
  applyItems(items){
    if(!this.selectedIds)this.selectedIds=new Set();

@@ -23,8 +23,8 @@ const messages = {
 }
 const storageKey = 'rebear-language'
 function getLanguage() {
-  try { return wx.getStorageSync(storageKey) === 'en' ? 'en' : 'zh' }
-  catch (_) { return 'zh' }
+  try { return wx.getStorageSync(storageKey) === 'zh' ? 'zh' : 'en' }
+  catch (_) { return 'en' }
 }
 function saveLanguage(language) {
   try { wx.setStorageSync(storageKey, language) } catch (_) {}
@@ -42,12 +42,12 @@ Object.assign(i18n.messages.zh, {
   camera: '拍摄照片', album: '从相册选择', sample: '使用示例照片', cancelSheet: '取消', error: '操作失败，请重试'
 });
 Object.assign(i18n.messages.en, {
-  start: 'Upload', note: 'Take or choose a photo of old clothing', photoTitle: 'Upload Fabric',
+  start: 'Start a New Story', note: 'Take or choose a photo of old clothing', photoTitle: 'Upload Fabric',
   photoHint: 'Choose a photo, mark the fabric and measure it.', camera: 'Take a Photo', album: 'Choose from Album',
   sample: 'Use a Sample', cancelSheet: 'Cancel', error: 'Something went wrong. Please try again.'
 });
 Page({
-  data: { language: 'zh', t: i18n.messages.zh, sheet: false, photoBusy: false },
+  data: { language: 'en', t: i18n.messages.en, sheet: false, photoBusy: false },
   onLoad() {
     const language = i18n.getLanguage()
     this.setData({ language, t: i18n.messages[language] })

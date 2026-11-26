@@ -7,3 +7,9 @@
 .upload-status{text-align:center;font-size:23rpx;color:#88715c;margin-top:18rpx}
 
 .home button.upload-pressed{opacity:.8;transform:translateY(2rpx)}
+.hero-speech{position:relative;z-index:3;box-sizing:border-box;margin:0 0 8rpx;padding:20rpx 24rpx 22rpx;border:2rpx solid #e7c99f;border-radius:26rpx;background:#fff7e7;box-shadow:0 5rpx 14rpx rgba(105,72,45,.08);color:#4d3429}
+.hero-speech-headline{font-size:44rpx;font-weight:700;line-height:1.45;white-space:pre-line}
+.hero-speech-headline.headline-en{font-size:38rpx;line-height:1.35}
+.hero-speech-tagline{margin-top:8rpx;color:#88715c;font-size:25rpx;line-height:1.5}
+.hero-speech-tail{position:absolute;right:76rpx;bottom:-13rpx;width:22rpx;height:22rpx;box-sizing:border-box;transform:rotate(45deg);border-right:2rpx solid #e7c99f;border-bottom:2rpx solid #e7c99f;border-radius:0 0 4rpx 0;background:#fff7e7}
+.home-bear{position:absolute;left:50%;top:50%;width:115%;height:620rpx;max-width:none;transform:translate(-58%,-50%);z-index:1}

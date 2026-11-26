@@ -1,9 +1,8 @@
 <import src="../../templates/upload-sheet.wxml"/>
 <view class="home">
-  <view class="top-row"><view class="brand">ReBear</view><view class="language-switch"><button class="language-option {{language==='zh'?'selected':''}}" data-language="zh" bindtap="changeLanguage">中文</button><text>/</text><button class="language-option {{language==='en'?'selected':''}}" data-language="en" bindtap="changeLanguage">EN</button></view></view>
+  <view class="top-row"><view class="brand">ReBear</view><view class="language-switch"><button class="language-option {{language==='en'?'selected':''}}" data-language="en" bindtap="changeLanguage">EN</button><text>/</text><button class="language-option {{language==='zh'?'selected':''}}" data-language="zh" bindtap="changeLanguage">中文</button></view></view>
   <view class="surface">
-    <view class="headline {{language==='en'?'headline-en':''}}">{{t.headline}}</view>
-    <view class="tagline">{{t.tagline}}</view>
+    <view class="hero-speech"><view class="hero-speech-headline {{language==='en'?'headline-en':''}}">{{t.headline}}</view><view class="hero-speech-tagline">{{t.tagline}}</view><view class="hero-speech-tail" /></view>
     <view class="hero"><view class="hero-badge">{{t.badge}}</view><view class="halo"></view><image class="home-bear" src="/assets/bear-home.png" mode="aspectFit"/><view class="floor-stitch">﹏﹏﹏﹏﹏﹏﹏﹏</view></view>
     <button class="start-button" hover-class="upload-pressed" disabled="{{photoBusy}}" bindtap="startMaking">{{t.start}}</button><view class="note">{{t.note}}</view>
   </view>
