@@ -57,7 +57,7 @@
     <view class="workbench-column">
       <view class="cloth" style="width:{{clothWidth}}rpx;height:{{clothHeight}}rpx">
         <image class="cloth-image" src="{{items[fabricIndex].image}}" mode="scaleToFill" />
-        <canvas type="2d" id="seam-canvas" class="seam-canvas" />
+        <canvas type="2d" id="seam-canvas" class="seam-canvas {{exitDialog || saveDialog ? 'seam-canvas-hidden' : ''}}" hidden="{{exitDialog || saveDialog}}" />
 
         <view
           wx:for="{{placedGhosts}}"

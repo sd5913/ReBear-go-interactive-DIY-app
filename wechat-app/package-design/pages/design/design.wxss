@@ -166,6 +166,11 @@
   pointer-events: none;
 }
 
+/* Hide the native drawing layer while ordinary view dialogs are open. */
+.seam-canvas.seam-canvas-hidden {
+  display: none;
+}
+
 .piece-wrap {
   position: absolute;
   top: 0;
